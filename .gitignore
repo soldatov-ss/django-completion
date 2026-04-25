@@ -1,0 +1,54 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[codz]
+*$py.class
+
+# C extensions
+*.so
+
+# Distribution / packaging
+build/
+dist/
+eggs/
+.eggs/
+*.egg-info/
+*.egg
+MANIFEST
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+coverage.xml
+.hypothesis/
+.pytest_cache/
+
+# Environments
+.env
+.envrc
+.venv
+
+# uv
+#   Generally recommended to include uv.lock in version control for
+#   reproducibility. Uncomment for libraries where you want consumers
+#   to resolve their own dependencies.
+# uv.lock
+
+# Ruff
+.ruff_cache/
+
+# Type checkers
+.mypy_cache/
+.dmypy.json
+dmypy.json
+.pyre/
+.pytype/
+
+# Documentation build output
+site/
+
+# IDE files
+.idea/
+.vscode/
