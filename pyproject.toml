@@ -19,10 +19,9 @@ classifiers = [
 ]
 license = {text = "MIT"}
 dependencies = [
-  "typer",
-  "rich",
+  "django>=4.2",
 ]
-requires-python = ">= 3.12"
+requires-python = ">=3.10"
 
 [dependency-groups]
 dev = [
@@ -36,6 +35,7 @@ lint = [
 test = [
     "coverage",
     "pytest",
+    "pytest-django",
 ]
 typecheck = [
     "ty",
@@ -51,8 +51,9 @@ changelog = "https://github.com/soldatov-ss/django_completion/releases"
 documentation = "https://soldatov-ss.github.io/django_completion/"
 homepage = "https://github.com/soldatov-ss/django_completion"
 
-[project.scripts]
-django_completion = "django_completion.cli:app"
+[tool.pytest.ini_options]
+DJANGO_SETTINGS_MODULE = "testproject.settings"
+pythonpath = ["tests"]
 
 [tool.ty]
 # All rules are enabled as "error" by default; no need to specify unless overriding.

@@ -1,6 +1,6 @@
 # django-completion — Implementation Plan
 
-## Status: NOT STARTED
+## Status: COMPLETE (v1 — all 8 steps shipped)
 
 All design decisions are locked. This document is the source of truth for resuming work.
 
@@ -86,52 +86,52 @@ tests/
 ## Implementation Steps
 
 ### Step 1 — Project scaffolding
-- [ ] Rename `pyproject.toml` name to `django-completion`
-- [ ] Fix `requires-python` to `>=3.10`
-- [ ] Add `django>=4.2` as dependency
-- [ ] Create `django_completion/` package with empty `__init__.py`
-- [ ] Create `django_completion/apps.py` with basic `AppConfig`
+- [x] Rename `pyproject.toml` name to `django-completion`
+- [x] Fix `requires-python` to `>=3.10`
+- [x] Add `django>=4.2` as dependency
+- [x] Create `django_completion/` package with empty `__init__.py`
+- [x] Create `django_completion/apps.py` with basic `AppConfig`
 - **Verify:** `python -c "import django_completion"` succeeds
 
 ### Step 2 — Cache builder (`cache.py`)
-- [ ] `build_cache(settings)` — introspects commands via `management.get_commands()`, app labels via `apps.get_app_configs()`, options via each command's `create_parser()`
-- [ ] `write_cache(data, path)` — writes JSON to `.django-completion-cache.json`
-- [ ] `read_cache(path)` — returns parsed cache or `None` if missing/corrupt
-- [ ] `is_stale(cache, cooldown_seconds=60)` — checks `generated_at` against `time.time()`
+- [x] `build_cache(settings)` — introspects commands via `management.get_commands()`, app labels via `apps.get_app_configs()`, options via each command's `create_parser()`
+- [x] `write_cache(data, path)` — writes JSON to `.django-completion-cache.json`
+- [x] `read_cache(path)` — returns parsed cache or `None` if missing/corrupt
+- [x] `is_stale(cache, cooldown_seconds=60)` — checks `generated_at` against `time.time()`
 - **Verify:** `test_cache.py` — build cache from a test Django project, assert structure matches schema
 
 ### Step 3 — App classifier (`classify.py`)
-- [ ] `classify_app(app_config)` → `"local"` or `"pip"`
-- [ ] Local detection: check if `app_config.module.__file__` is under `BASE_DIR`
-- [ ] pip detection: check if module path is inside `site-packages`
+- [x] `classify_app(app_config)` → `"local"` or `"pip"`
+- [x] Local detection: check if `app_config.module.__file__` is under `BASE_DIR`
+- [x] pip detection: check if module path is inside `site-packages`
 - **Verify:** `test_classify.py` — test both paths with mock app configs
 
 ### Step 4 — Auto-refresh hook (`apps.py`)
-- [ ] In `AppConfig.ready()`, monkey-patch `BaseCommand.execute()` to call `maybe_refresh_cache()` after command runs
-- [ ] `maybe_refresh_cache()` — checks staleness, if stale spawns background `threading.Thread` to rebuild cache
-- [ ] Thread must be daemon=True so it doesn't block process exit
+- [x] In `AppConfig.ready()`, monkey-patch `BaseCommand.execute()` to call `maybe_refresh_cache()` after command runs
+- [x] `maybe_refresh_cache()` — checks staleness, if stale spawns background `threading.Thread` to rebuild cache
+- [x] Thread must be daemon=True so it doesn't block process exit
 - **Verify:** Run any `manage.py` command twice within 60s, confirm cache only regenerates once
 
 ### Step 5 — Fuzzy matching (`fuzzy.py`)
-- [ ] `suggest(input_str, candidates)` → closest match(es) using `difflib.get_close_matches`
-- [ ] Hook into Django's `CommandError` output — intercept unknown command errors and append suggestion
+- [x] `suggest(input_str, candidates)` → closest match(es) using `difflib.get_close_matches`
+- [x] Hook into Django's `CommandError` output — intercept unknown command errors and append suggestion
 - **Verify:** `test_fuzzy.py` — `migarte` → suggests `migrate`, `shel` → suggests `shell`
 
 ### Step 6 — `autocomplete` management command
-- [ ] `autocomplete install` — detect shell (bash/zsh), write completion script to appropriate location, append `source` line to `.bashrc`/`.zshrc`
-- [ ] `autocomplete status` — print cache age, app count, command count, shell hook status
-- [ ] `autocomplete refresh` — force cache rebuild regardless of cooldown
-- [ ] `autocomplete uninstall` — remove sourced line from shell config
+- [x] `autocomplete install` — detect shell (bash/zsh), write completion script to appropriate location, append `source` line to `.bashrc`/`.zshrc`
+- [x] `autocomplete status` — print cache age, app count, command count, shell hook status
+- [x] `autocomplete refresh` — force cache rebuild regardless of cooldown
+- [x] `autocomplete uninstall` — remove sourced line from shell config
 - **Verify:** Run each subcommand, assert correct output and file side effects
 
 ### Step 7 — Shell script templates
-- [ ] `bash_completion.sh.tmpl` — reads cache JSON, implements `_django_completion()` function, registers with `complete`
-- [ ] `zsh_completion.zsh.tmpl` — same logic, adds description annotations from cache for rich tab display
+- [x] `bash_completion.sh.tmpl` — reads cache JSON, implements `_django_completion()` function, registers with `complete`
+- [x] `zsh_completion.zsh.tmpl` — same logic, adds description annotations from cache for rich tab display
 - **Verify:** `test_shell.py` — subprocess invoke `bash -c 'source script; complete -p manage.py'`, assert registration
 
 ### Step 8 — Integration test
-- [ ] Create a minimal test Django project in `tests/testproject/`
-- [ ] Run full flow: build cache → install shell script → simulate tab completion → assert correct completions returned
+- [x] Create a minimal test Django project in `tests/testproject/`
+- [x] Run full flow: build cache → install shell script → simulate tab completion → assert correct completions returned
 - **Verify:** All pytest tests pass
 
 ---
