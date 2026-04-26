@@ -29,8 +29,11 @@ class DjangoCompletionConfig(AppConfig):
             try:
                 return original_execute(cmd_self, *args, **kwargs)
             finally:
-                thread = threading.Thread(target=refresh_safely, name="django-completion-refresh")
-                thread.start()
+                from django.conf import settings
+
+                if getattr(settings, "DJANGO_COMPLETION_AUTO_REFRESH", True):
+                    thread = threading.Thread(target=refresh_safely, name="django-completion-refresh")
+                    thread.start()
 
         base_command.execute = patched_execute
         base_command._django_completion_patched = True
