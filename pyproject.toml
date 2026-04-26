@@ -14,13 +14,34 @@ maintainers = [
   {name = "Soldatov Serhii", email = "soldatov.own@gmail.com"}
 ]
 classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Environment :: Console",
+    "Framework :: Django",
+    "Framework :: Django :: 4.2",
+    "Framework :: Django :: 5",
+    "Framework :: Django :: 6",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3 :: Only",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
+    "Topic :: Software Development",
+    "Topic :: System :: Shells",
     "Typing :: Typed",
-    # TODO: Add additional classifiers as needed
 ]
+keywords = ["autocomplete", "completion", "django", "manage.py", "shell"]
 license = {text = "MIT"}
+license-files = ["LICENSE"]
+
 dependencies = [
   "django>=4.2",
 ]
+
 requires-python = ">=3.10"
 
 [dependency-groups]
@@ -47,10 +68,26 @@ docs = [
 ]
 
 [project.urls]
-bugs = "https://github.com/soldatov-ss/django_completion/issues"
-changelog = "https://github.com/soldatov-ss/django_completion/releases"
-documentation = "https://soldatov-ss.github.io/django_completion/"
-homepage = "https://github.com/soldatov-ss/django_completion"
+"Bug Tracker" = "https://github.com/soldatov-ss/django-completion/issues"
+Changelog = "https://github.com/soldatov-ss/django-completion/releases"
+Documentation = "https://soldatov-ss.github.io/django_completion/"
+Homepage = "https://github.com/soldatov-ss/django-completion"
+Repository = "https://github.com/soldatov-ss/django-completion"
+
+[tool.hatch.build.targets.sdist]
+include = [
+    "/CHANGELOG",
+    "/docs",
+    "/src",
+    "/tests",
+    "/LICENSE",
+    "/README.md",
+    "/PLAN.md",
+    "/pyproject.toml",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/django_completion"]
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "testproject.settings"

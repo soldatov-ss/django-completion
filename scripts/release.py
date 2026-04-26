@@ -8,6 +8,7 @@ from pathlib import Path
 import subprocess
 import sys
 
+# tomllib is stdlib on 3.11+; fall back to the third-party backport on 3.10
 if sys.version_info >= (3, 11):
     import tomllib
 else:
@@ -20,12 +21,14 @@ def _run(*cmd: str) -> None:
 
 
 def main() -> None:
+    # Read version and project name from pyproject.toml
     pyproject = tomllib.loads(Path("pyproject.toml").read_text())
     name = pyproject["project"]["name"]
     version = pyproject["project"]["version"]
     tag = f"v{version}"
-    notes_path = Path(f"CHANGELOG/{version}.md")
 
+    # Strip the H1 heading line from the changelog entry (gh uses it as the title)
+    notes_path = Path(f"CHANGELOG/{version}.md")
     lines = notes_path.read_text().splitlines(keepends=True)
     if lines and lines[0].startswith("# "):
         lines = lines[1:]
@@ -33,6 +36,7 @@ def main() -> None:
             lines = lines[1:]
     notes = "".join(lines).rstrip()
 
+    # Tag, push, then create the GitHub release
     _run("git", "tag", "-a", tag, "-m", f"Release {tag}")
     _run("git", "push", "origin", tag)
     _run(
