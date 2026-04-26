@@ -1,9 +1,6 @@
 import site
-from pathlib import Path
 from types import ModuleType
 from unittest.mock import MagicMock
-
-import pytest
 
 from django_completion.classify import classify_app
 

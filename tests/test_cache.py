@@ -1,16 +1,8 @@
-import json
 import time
-from pathlib import Path
 
 import pytest
 
-from django_completion.cache import (
-    COOLDOWN_SECONDS,
-    build_cache,
-    is_stale,
-    read_cache,
-    write_cache,
-)
+from django_completion.cache import build_cache, is_stale, read_cache, write_cache
 
 
 @pytest.mark.django_db

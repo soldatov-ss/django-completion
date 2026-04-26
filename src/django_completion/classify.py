@@ -1,9 +1,12 @@
 from pathlib import Path
 import site
+from typing import Literal
+
+from django.apps import AppConfig
 
 
-def classify_app(app_config) -> str:
-    """Return 'local' or 'pip' for an AppConfig."""
+def classify_app(app_config: AppConfig) -> Literal["local", "pip"]:
+    """Classify an app as 'local' (in BASE_DIR) or 'pip' (installed package)."""
     try:
         module_file = app_config.module.__file__
     except AttributeError:

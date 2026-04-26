@@ -53,7 +53,7 @@ homepage = "https://github.com/soldatov-ss/django_completion"
 
 [tool.pytest.ini_options]
 DJANGO_SETTINGS_MODULE = "testproject.settings"
-pythonpath = ["tests"]
+pythonpath = ["tests/testproject"]
 
 [tool.ty]
 # All rules are enabled as "error" by default; no need to specify unless overriding.
@@ -72,9 +72,6 @@ indent-width = 4
 lint.exclude = [
     'venv', '.git',
     '.idea', '__pycache__',
-    '**/migrations/**', 'scripts/',
-    '**/tests/**',
-    '**/tests.py',
 ]
 lint.select = [
     "I", # isort

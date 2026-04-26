@@ -1,5 +1,7 @@
+from argparse import ArgumentParser
 import os
 from pathlib import Path
+from typing import Any, Literal
 
 from django.core.management.base import BaseCommand
 
@@ -21,21 +23,25 @@ _TMPL_NAMES = {
 }
 
 
-def _detect_shell() -> str:
+def _detect_shell() -> Literal["zsh", "bash"]:
+    """Infer the current shell from $SHELL, defaulting to bash."""
     shell = os.environ.get("SHELL", "")
     return "zsh" if "zsh" in shell else "bash"
 
 
-def _script_content(shell: str) -> str:
+def _script_content(shell: Literal["bash", "zsh"]) -> str:
+    """Read the completion script template for the given shell."""
     tmpl = Path(__file__).parent.parent.parent / "scripts" / _TMPL_NAMES[shell]
     return tmpl.read_text()
 
 
 def _source_block(script_path: Path) -> str:
+    """Return a marker-delimited source line suitable for appending to an RC file."""
     return f"{_MARKER_BEGIN}\nsource {script_path}\n{_MARKER_END}\n"
 
 
 def _is_installed(rc_path: Path) -> bool:
+    """Return True if the completion block marker is present in rc_path."""
     try:
         return _MARKER_BEGIN in rc_path.read_text()
     except OSError:
@@ -45,7 +51,7 @@ def _is_installed(rc_path: Path) -> bool:
 class Command(BaseCommand):
     help = "Manage Django shell autocompletion"
 
-    def add_arguments(self, parser):
+    def add_arguments(self, parser: ArgumentParser) -> None:
         sub = parser.add_subparsers(dest="subcommand", metavar="subcommand")
         sub.required = True
 
@@ -56,7 +62,7 @@ class Command(BaseCommand):
         sub.add_parser("refresh", help="Force cache rebuild")
         sub.add_parser("uninstall", help="Remove shell completion")
 
-    def handle(self, *args, **options):
+    def handle(self, *args: Any, **options: Any) -> None:
         dispatch = {
             "install": self._install,
             "status": self._status,
@@ -65,7 +71,8 @@ class Command(BaseCommand):
         }
         dispatch[options["subcommand"]](options)
 
-    def _install(self, options):
+    def _install(self, options: dict[str, Any]) -> None:
+        """Write the completion script and append a source block to the shell RC file."""
         shell = options.get("shell") or _detect_shell()
         _INSTALL_DIR.mkdir(parents=True, exist_ok=True)
 
@@ -83,7 +90,8 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS(f"Installed {shell} completion. Restart your shell or run:"))
         self.stdout.write(f"  source {rc_path}")
 
-    def _status(self, options):
+    def _status(self, options: dict[str, Any]) -> None:
+        """Print cache age/staleness and per-shell installation status."""
         import time
 
         from django_completion.cache import COOLDOWN_SECONDS, _cache_path, is_stale, read_cache
@@ -105,7 +113,8 @@ class Command(BaseCommand):
             status = "installed" if installed else "not installed"
             self.stdout.write(f"{shell} hook: {status}")
 
-    def _refresh(self, options):
+    def _refresh(self, options: dict[str, Any]) -> None:
+        """Force a full cache rebuild and persist it to disk."""
         from django_completion.cache import _cache_path, build_cache, write_cache
 
         data = build_cache()
@@ -114,7 +123,8 @@ class Command(BaseCommand):
             self.style.SUCCESS(f"Cache rebuilt: {len(data['commands'])} commands, {len(data['app_labels'])} apps")
         )
 
-    def _uninstall(self, options):
+    def _uninstall(self, options: dict[str, Any]) -> None:
+        """Remove the marker-delimited completion block from all shell RC files."""
         for shell, rc_path in _SHELL_RC.items():
             try:
                 text = rc_path.read_text()

@@ -86,6 +86,7 @@ def is_stale(cache: dict, cooldown_seconds: int = COOLDOWN_SECONDS) -> bool:
 
 
 def maybe_refresh_cache() -> bool:
+    """Rebuild and persist the cache if stale or missing; returns True if the cache was refreshed."""
     path = _cache_path()
     cache = read_cache(path)
     if cache is not None and not is_stale(cache):
