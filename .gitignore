@@ -57,3 +57,7 @@ site/
 .vscode/
 
 .python-version
+
+.claude/
+CLAUDE.md
+.agents/
