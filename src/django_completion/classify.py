@@ -1,5 +1,5 @@
-import site
 from pathlib import Path
+import site
 
 
 def classify_app(app_config) -> str:
@@ -17,7 +17,7 @@ def classify_app(app_config) -> str:
     site_dirs = site.getsitepackages()
     user_site = site.getusersitepackages()
     if isinstance(user_site, str):
-        site_dirs = site_dirs + [user_site]
+        site_dirs = [*site_dirs, user_site]
 
     for sp in site_dirs:
         try:

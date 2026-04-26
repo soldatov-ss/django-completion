@@ -10,7 +10,6 @@ All design decisions are locked. This document is the source of truth for resumi
 
 - **PyPI name:** `django-completion`
 - **Django app label:** `django_completion`
-- **Current pyproject.toml name:** `django-autocomplete` — needs renaming before first publish
 - **Min versions:** Python 3.10+, Django 4.2+
 
 ---
@@ -154,6 +153,5 @@ tests/
 ---
 
 ## Known Issues / Open Questions
-- `pyproject.toml` currently named `django-autocomplete` — rename before publishing
 - Need to decide cache file location when `BASE_DIR` is not set in settings (fallback: `os.getcwd()`)
 - Shell detection (`$SHELL` env var) may be unreliable in some CI environments — `autocomplete install` should accept `--shell bash|zsh` flag as override

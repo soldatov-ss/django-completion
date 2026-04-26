@@ -1,7 +1,7 @@
 import os
 from pathlib import Path
 
-from django.core.management.base import BaseCommand, CommandError
+from django.core.management.base import BaseCommand
 
 _INSTALL_DIR = Path.home() / ".local" / "share" / "django-completion"
 _MARKER_BEGIN = "# django-completion begin"
@@ -84,8 +84,9 @@ class Command(BaseCommand):
         self.stdout.write(f"  source {rc_path}")
 
     def _status(self, options):
-        from django_completion.cache import COOLDOWN_SECONDS, _cache_path, is_stale, read_cache
         import time
+
+        from django_completion.cache import COOLDOWN_SECONDS, _cache_path, is_stale, read_cache
 
         cache_path = _cache_path()
         cache = read_cache(cache_path)
@@ -109,9 +110,9 @@ class Command(BaseCommand):
 
         data = build_cache()
         write_cache(data, _cache_path())
-        self.stdout.write(self.style.SUCCESS(
-            f"Cache rebuilt: {len(data['commands'])} commands, {len(data['app_labels'])} apps"
-        ))
+        self.stdout.write(
+            self.style.SUCCESS(f"Cache rebuilt: {len(data['commands'])} commands, {len(data['app_labels'])} apps")
+        )
 
     def _uninstall(self, options):
         for shell, rc_path in _SHELL_RC.items():

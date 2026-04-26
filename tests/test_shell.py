@@ -32,17 +32,23 @@ def cache_dir(tmp_path):
     return tmp_path
 
 
-def _bash_complete(cache_dir: Path, comp_words: list[str], comp_cword: int, func: str = "_django_manage_completion") -> list[str]:
+def _bash_complete(
+    cache_dir: Path, comp_words: list[str], comp_cword: int, func: str = "_django_manage_completion"
+) -> list[str]:
     words_str = " ".join(f'"{w}"' for w in comp_words)
     result = subprocess.run(
-        ["bash", "-c", f"""
+        [
+            "bash",
+            "-c",
+            f"""
 source {BASH_SCRIPT}
 cd {cache_dir}
 COMP_WORDS=({words_str})
 COMP_CWORD={comp_cword}
 {func}
 echo "${{COMPREPLY[@]}}"
-"""],
+""",
+        ],
         capture_output=True,
         text=True,
         timeout=10,

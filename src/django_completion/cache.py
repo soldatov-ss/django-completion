@@ -1,6 +1,6 @@
 import json
-import time
 from pathlib import Path
+import time
 
 CACHE_FILENAME = ".django-completion-cache.json"
 COOLDOWN_SECONDS = 60
@@ -26,10 +26,7 @@ def build_cache() -> dict:
     commands_map = management.get_commands()
     command_names = sorted(commands_map.keys())
 
-    app_labels = [
-        {"label": cfg.label, "origin": classify_app(cfg)}
-        for cfg in apps.get_app_configs()
-    ]
+    app_labels = [{"label": cfg.label, "origin": classify_app(cfg)} for cfg in apps.get_app_configs()]
 
     command_options: dict[str, list[str]] = {}
     for cmd_name, app_name in commands_map.items():

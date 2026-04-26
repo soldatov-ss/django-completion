@@ -3,13 +3,14 @@
 # ///
 """Tag the current version and create a GitHub release."""
 
-import subprocess
-import tomllib
 from pathlib import Path
+import subprocess
+
+import tomllib
 
 
 def _run(*cmd: str) -> None:
-    print(f"$ {' '.join(cmd)}")  # noqa: T201
+    print(f"$ {' '.join(cmd)}")
     subprocess.run(cmd, check=True)
 
 
