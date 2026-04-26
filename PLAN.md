@@ -48,9 +48,18 @@ Location: `{project_root}/.django-completion-cache.json` (gitignore this file)
     {"label": "rest_framework", "origin": "pip"},
     {"label": "django.contrib.auth", "origin": "pip"}
   ],
+  "command_help": {
+    "migrate": "Updates database schema. Manages both apps with migrations and those without."
+  },
   "command_options": {
     "migrate": ["--fake", "--fake-initial", "--database", "--run-syncdb", "--check"],
     "runserver": ["--noreload", "--nothreading", "--ipv6"]
+  },
+  "command_option_descriptions": {
+    "migrate": {
+      "--fake": "Mark migrations as run without actually running them.",
+      "--database": "Nominates a database to synchronize."
+    }
   },
   "generated_at": 1714000000.0
 }
@@ -107,8 +116,8 @@ tests/
 
 ### Step 4 — Auto-refresh hook (`apps.py`)
 - [x] In `AppConfig.ready()`, monkey-patch `BaseCommand.execute()` to call `maybe_refresh_cache()` after command runs
-- [x] `maybe_refresh_cache()` — checks staleness, if stale spawns background `threading.Thread` to rebuild cache
-- [x] Thread must be daemon=True so it doesn't block process exit
+- [x] `maybe_refresh_cache()` — checks staleness and rebuilds the cache behind a process-local lock
+- [x] Refresh runs in a background thread after each command and is non-daemon so short-lived commands do not exit before cache writes finish
 - **Verify:** Run any `manage.py` command twice within 60s, confirm cache only regenerates once
 
 ### Step 5 — Fuzzy matching (`fuzzy.py`)
@@ -153,5 +162,4 @@ tests/
 ---
 
 ## Known Issues / Open Questions
-- Need to decide cache file location when `BASE_DIR` is not set in settings (fallback: `os.getcwd()`)
-- Shell detection (`$SHELL` env var) may be unreliable in some CI environments — `autocomplete install` should accept `--shell bash|zsh` flag as override
+- No current v1 runtime issues tracked here.

@@ -18,19 +18,36 @@ _django_manage() {
         commands=(${(f)"$(CACHE_FILE="$cache_file" python3 -c '
 import json, os
 data = json.load(open(os.environ["CACHE_FILE"]))
-print("\n".join(data.get("commands", [])))
+help_by_command = data.get("command_help", {})
+for command in data.get("commands", []):
+    desc = help_by_command.get(command, "").replace(":", "\\:")
+    print(f"{command}:{desc}")
 ' 2>/dev/null)"})
-        compadd -a commands
+        _describe -t commands "django command" commands
 
     elif (( CURRENT >= 3 )); then
         local cmd="${words[2]}"
-        local -a opts
-        opts=(${(f)"$(CACHE_FILE="$cache_file" CMD="$cmd" python3 -c '
+        local cur="${words[CURRENT]}"
+        local -a candidates
+        candidates=(${(f)"$(CACHE_FILE="$cache_file" CMD="$cmd" CUR="$cur" python3 -c '
 import json, os
 data = json.load(open(os.environ["CACHE_FILE"]))
-print("\n".join(data.get("command_options", {}).get(os.environ["CMD"], [])))
+cur = os.environ["CUR"]
+cmd = os.environ["CMD"]
+opts = data.get("command_options", {}).get(cmd, [])
+option_descriptions = data.get("command_option_descriptions", {}).get(cmd, {})
+apps = data.get("app_labels", [])
+if not cur.startswith("-"):
+    for app in apps:
+        label = app.get("label", "")
+        origin = app.get("origin", "pip")
+        if label:
+            print(f"{label}:[{origin}]")
+for opt in opts:
+    desc = option_descriptions.get(opt, "").replace(":", "\\:")
+    print(f"{opt}:{desc}")
 ' 2>/dev/null)"})
-        compadd -a opts
+        _describe -t arguments "django argument" candidates
     fi
 }
 
@@ -60,19 +77,36 @@ _django_python_manage() {
         commands=(${(f)"$(CACHE_FILE="$cache_file" python3 -c '
 import json, os
 data = json.load(open(os.environ["CACHE_FILE"]))
-print("\n".join(data.get("commands", [])))
+help_by_command = data.get("command_help", {})
+for command in data.get("commands", []):
+    desc = help_by_command.get(command, "").replace(":", "\\:")
+    print(f"{command}:{desc}")
 ' 2>/dev/null)"})
-        compadd -a commands
+        _describe -t commands "django command" commands
 
     elif (( relative_current >= 2 )); then
         local cmd="${words[$((manage_pos + 1))]}"
-        local -a opts
-        opts=(${(f)"$(CACHE_FILE="$cache_file" CMD="$cmd" python3 -c '
+        local cur="${words[CURRENT]}"
+        local -a candidates
+        candidates=(${(f)"$(CACHE_FILE="$cache_file" CMD="$cmd" CUR="$cur" python3 -c '
 import json, os
 data = json.load(open(os.environ["CACHE_FILE"]))
-print("\n".join(data.get("command_options", {}).get(os.environ["CMD"], [])))
+cur = os.environ["CUR"]
+cmd = os.environ["CMD"]
+opts = data.get("command_options", {}).get(cmd, [])
+option_descriptions = data.get("command_option_descriptions", {}).get(cmd, {})
+apps = data.get("app_labels", [])
+if not cur.startswith("-"):
+    for app in apps:
+        label = app.get("label", "")
+        origin = app.get("origin", "pip")
+        if label:
+            print(f"{label}:[{origin}]")
+for opt in opts:
+    desc = option_descriptions.get(opt, "").replace(":", "\\:")
+    print(f"{opt}:{desc}")
 ' 2>/dev/null)"})
-        compadd -a opts
+        _describe -t arguments "django argument" candidates
     fi
 }
 

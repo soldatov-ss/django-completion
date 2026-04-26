@@ -18,7 +18,9 @@ def test_build_cache_structure():
     data = build_cache()
     assert "commands" in data
     assert "app_labels" in data
+    assert "command_help" in data
     assert "command_options" in data
+    assert "command_option_descriptions" in data
     assert "generated_at" in data
     assert isinstance(data["commands"], list)
     assert len(data["commands"]) > 0
@@ -39,11 +41,26 @@ def test_build_cache_app_labels_have_origin():
 
 
 @pytest.mark.django_db
+def test_build_cache_app_labels_local_first(settings, tmp_path):
+    settings.BASE_DIR = str(tmp_path)
+    data = build_cache()
+    origins = [entry["origin"] for entry in data["app_labels"]]
+    assert origins == sorted(origins, key=lambda origin: origin != "local")
+
+
+@pytest.mark.django_db
 def test_build_cache_command_options():
     data = build_cache()
     # migrate should have --fake option
     migrate_opts = data["command_options"].get("migrate", [])
     assert "--fake" in migrate_opts
+
+
+@pytest.mark.django_db
+def test_build_cache_command_descriptions():
+    data = build_cache()
+    assert isinstance(data["command_help"].get("migrate"), str)
+    assert isinstance(data["command_option_descriptions"].get("migrate", {}).get("--fake"), str)
 
 
 def test_write_and_read_cache(tmp_path):

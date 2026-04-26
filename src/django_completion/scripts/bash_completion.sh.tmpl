@@ -28,13 +28,17 @@ print(" ".join(data.get("commands", [])))
 
     elif [[ ${COMP_CWORD} -ge 2 ]]; then
         local cmd="${COMP_WORDS[1]}"
-        local opts
-        opts=$(CACHE_FILE="$cache_file" CMD="$cmd" python3 -c '
+        local candidates
+        candidates=$(CACHE_FILE="$cache_file" CMD="$cmd" CUR="$cur" python3 -c '
 import json, os
 data = json.load(open(os.environ["CACHE_FILE"]))
-print(" ".join(data.get("command_options", {}).get(os.environ["CMD"], [])))
+cur = os.environ["CUR"]
+opts = data.get("command_options", {}).get(os.environ["CMD"], [])
+apps = [entry.get("label", "") for entry in data.get("app_labels", [])]
+values = opts if cur.startswith("-") else [*apps, *opts]
+print(" ".join(v for v in values if v))
 ' 2>/dev/null)
-        COMPREPLY=($(compgen -W "$opts" -- "$cur"))
+        COMPREPLY=($(compgen -W "$candidates" -- "$cur"))
     fi
 }
 
@@ -68,13 +72,17 @@ print(" ".join(data.get("commands", [])))
 
     elif [[ ${pos} -ge 2 ]]; then
         local cmd="${COMP_WORDS[$((manage_idx + 1))]}"
-        local opts
-        opts=$(CACHE_FILE="$cache_file" CMD="$cmd" python3 -c '
+        local candidates
+        candidates=$(CACHE_FILE="$cache_file" CMD="$cmd" CUR="$cur" python3 -c '
 import json, os
 data = json.load(open(os.environ["CACHE_FILE"]))
-print(" ".join(data.get("command_options", {}).get(os.environ["CMD"], [])))
+cur = os.environ["CUR"]
+opts = data.get("command_options", {}).get(os.environ["CMD"], [])
+apps = [entry.get("label", "") for entry in data.get("app_labels", [])]
+values = opts if cur.startswith("-") else [*apps, *opts]
+print(" ".join(v for v in values if v))
 ' 2>/dev/null)
-        COMPREPLY=($(compgen -W "$opts" -- "$cur"))
+        COMPREPLY=($(compgen -W "$candidates" -- "$cur"))
     fi
 }
 

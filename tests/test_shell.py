@@ -18,13 +18,25 @@ def cache_dir(tmp_path):
     """A temp directory containing a pre-built completion cache."""
     data = {
         "commands": ["migrate", "runserver", "shell", "makemigrations", "startapp"],
+        "command_help": {
+            "migrate": "Updates database schema",
+            "runserver": "Starts a development server",
+        },
         "app_labels": [
-            {"label": "auth", "origin": "pip"},
             {"label": "myapp", "origin": "local"},
+            {"label": "auth", "origin": "pip"},
         ],
         "command_options": {
             "migrate": ["--fake", "--fake-initial", "--database", "--run-syncdb"],
             "runserver": ["--noreload", "--nothreading", "--ipv6"],
+        },
+        "command_option_descriptions": {
+            "migrate": {
+                "--fake": "Mark migrations as run",
+                "--fake-initial": "Detect initial migrations",
+                "--database": "Database to migrate",
+                "--run-syncdb": "Create tables for apps without migrations",
+            }
         },
         "generated_at": 9_999_999_999,
     }
@@ -85,6 +97,20 @@ def test_bash_completes_options(cache_dir):
 
 
 @pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
+def test_bash_completes_app_labels(cache_dir):
+    completions = _bash_complete(cache_dir, ["manage.py", "migrate", ""], 2)
+    assert "myapp" in completions
+    assert "auth" in completions
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
+def test_bash_filters_options_when_prefix_is_dash(cache_dir):
+    completions = _bash_complete(cache_dir, ["manage.py", "migrate", "--f"], 2)
+    assert "--fake" in completions
+    assert "myapp" not in completions
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
 def test_bash_no_cache_returns_nothing(tmp_path):
     # tmp_path has no cache file — walk up should find nothing
     completions = _bash_complete(tmp_path, ["manage.py", ""], 1)
@@ -130,6 +156,12 @@ def test_zsh_script_sources_without_error(cache_dir):
     )
     assert result.returncode == 0
     assert "OK" in result.stdout
+
+
+def test_zsh_template_uses_descriptions():
+    text = ZSH_SCRIPT.read_text()
+    assert "_describe -t commands" in text
+    assert "_describe -t arguments" in text
 
 
 # ── Full integration: refresh command writes a valid cache ──────────────────
