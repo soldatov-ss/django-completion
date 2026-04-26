@@ -1,38 +1,69 @@
 # Installation
 
-## Stable release
+## 1. Install the package
 
-To install django-completion, run this command in your terminal:
-
-```sh
+```bash
+pip install django-completion
+# or
 uv add django-completion
 ```
 
-Or if you prefer to use `pip`:
+## 2. Add to INSTALLED_APPS
 
-```sh
-pip install django-completion
+```python
+INSTALLED_APPS = [
+    ...
+    "django_completion",
+]
 ```
 
-## From source
+For teams that prefer to keep it out of production:
 
-The source files for django-completion can be downloaded from the [Github repo](https://github.com/soldatov-ss/django_completion).
-
-You can either clone the public repository:
-
-```sh
-git clone https://github.com/soldatov-ss/django_completion
+```python
+if DEBUG:
+    INSTALLED_APPS += ["django_completion"]
 ```
 
-Or download the [tarball](https://github.com/soldatov-ss/django_completion/tarball/main):
+## 3. Install the shell hook
 
-```sh
-curl -OJL https://github.com/soldatov-ss/django_completion/tarball/main
+```bash
+python manage.py autocomplete install
 ```
 
-Once you have a copy of the source, you can install it with:
+This auto-detects bash or zsh from `$SHELL`. To specify explicitly:
 
-```sh
-cd django_completion
+```bash
+python manage.py autocomplete install --shell bash
+python manage.py autocomplete install --shell zsh
+```
+
+The command:
+
+- writes a completion script to `~/.local/share/django-completion/`
+- appends a marker-delimited source block to `~/.bashrc` or `~/.zshrc`
+- builds the cache immediately so completion works right away
+
+## 4. Reload your shell
+
+```bash
+source ~/.bashrc   # bash
+source ~/.zshrc    # zsh
+```
+
+Tab completion is now active.
+
+## Uninstall
+
+```bash
+python manage.py autocomplete uninstall
+```
+
+This removes the shell hook from your RC file, deletes the managed script files, and removes the managed install directory if it is empty. It never touches files outside the managed path.
+
+## Installing from source
+
+```bash
+git clone https://github.com/soldatov-ss/django-completion.git
+cd django-completion
 uv sync
 ```
