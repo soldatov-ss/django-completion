@@ -36,6 +36,7 @@ test = [
     "coverage",
     "pytest",
     "pytest-django",
+    "tomli; python_version < '3.11'",
 ]
 typecheck = [
     "ty",

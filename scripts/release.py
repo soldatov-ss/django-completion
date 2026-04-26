@@ -1,12 +1,17 @@
 # /// script
 # requires-python = ">=3.10"
+# dependencies = ["tomli; python_version < '3.11'"]
 # ///
 """Tag the current version and create a GitHub release."""
 
 from pathlib import Path
 import subprocess
+import sys
 
-import tomllib
+if sys.version_info >= (3, 11):
+    import tomllib
+else:
+    import tomli as tomllib
 
 
 def _run(*cmd: str) -> None:
