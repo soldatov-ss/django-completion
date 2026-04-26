@@ -82,13 +82,19 @@ class Command(BaseCommand):
         rc_path = _SHELL_RC[shell]
         if _is_installed(rc_path):
             self.stdout.write(f"Completion already installed in {rc_path}")
-            return
+        else:
+            with rc_path.open("a") as f:
+                f.write(f"\n{_source_block(script_path)}")
+            self.stdout.write(self.style.SUCCESS(f"Installed {shell} completion. Restart your shell or run:"))
+            self.stdout.write(f"  source {rc_path}")
 
-        with rc_path.open("a") as f:
-            f.write(f"\n{_source_block(script_path)}")
+        from django_completion.cache import _cache_path, build_cache, write_cache
 
-        self.stdout.write(self.style.SUCCESS(f"Installed {shell} completion. Restart your shell or run:"))
-        self.stdout.write(f"  source {rc_path}")
+        data = build_cache()
+        write_cache(data, _cache_path())
+        self.stdout.write(
+            self.style.SUCCESS(f"Cache built: {len(data['commands'])} commands, {len(data['app_labels'])} apps")
+        )
 
     def _status(self, options: dict[str, Any]) -> None:
         """Print cache age/staleness and per-shell installation status."""
