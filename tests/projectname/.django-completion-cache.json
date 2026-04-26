@@ -3,12 +3,15 @@
     "autocomplete",
     "changepassword",
     "check",
+    "clearsessions",
+    "collectstatic",
     "compilemessages",
     "createcachetable",
     "createsuperuser",
     "dbshell",
     "diffsettings",
     "dumpdata",
+    "findstatic",
     "flush",
     "inspectdb",
     "loaddata",
@@ -32,11 +35,27 @@
   ],
   "app_labels": [
     {
-      "label": "contenttypes",
+      "label": "admin",
       "origin": "pip"
     },
     {
       "label": "auth",
+      "origin": "pip"
+    },
+    {
+      "label": "contenttypes",
+      "origin": "pip"
+    },
+    {
+      "label": "sessions",
+      "origin": "pip"
+    },
+    {
+      "label": "messages",
+      "origin": "pip"
+    },
+    {
+      "label": "staticfiles",
       "origin": "pip"
     },
     {
@@ -296,9 +315,11 @@
     "runserver": [
       "--force-color",
       "--help",
+      "--insecure",
       "--ipv6",
       "--no-color",
       "--noreload",
+      "--nostatic",
       "--nothreading",
       "--pythonpath",
       "--settings",
@@ -527,6 +548,75 @@
       "-h",
       "-v"
     ],
+    "collectstatic": [
+      "--clear",
+      "--dry-run",
+      "--force-color",
+      "--help",
+      "--ignore",
+      "--link",
+      "--no-color",
+      "--no-default-ignore",
+      "--no-input",
+      "--no-post-process",
+      "--noinput",
+      "--pythonpath",
+      "--settings",
+      "--skip-checks",
+      "--traceback",
+      "--verbosity",
+      "--version",
+      "-c",
+      "-h",
+      "-i",
+      "-l",
+      "-n",
+      "-v"
+    ],
+    "findstatic": [
+      "--first",
+      "--force-color",
+      "--help",
+      "--no-color",
+      "--pythonpath",
+      "--settings",
+      "--skip-checks",
+      "--traceback",
+      "--verbosity",
+      "--version",
+      "-h",
+      "-v"
+    ],
+    "clearsessions": [
+      "--force-color",
+      "--help",
+      "--no-color",
+      "--pythonpath",
+      "--settings",
+      "--skip-checks",
+      "--traceback",
+      "--verbosity",
+      "--version",
+      "-h",
+      "-v"
+    ],
+    "remove_stale_contenttypes": [
+      "--database",
+      "--force-color",
+      "--help",
+      "--include-stale-apps",
+      "--no-color",
+      "--no-input",
+      "--noinput",
+      "--pythonpath",
+      "--settings",
+      "--skip-checks",
+      "--traceback",
+      "--verbosity",
+      "--version",
+      "-h",
+      "-v"
+    ],
     "changepassword": [
       "--database",
       "--force-color",
@@ -557,24 +647,7 @@
       "--version",
       "-h",
       "-v"
-    ],
-    "remove_stale_contenttypes": [
-      "--database",
-      "--force-color",
-      "--help",
-      "--include-stale-apps",
-      "--no-color",
-      "--no-input",
-      "--noinput",
-      "--pythonpath",
-      "--settings",
-      "--skip-checks",
-      "--traceback",
-      "--verbosity",
-      "--version",
-      "-h",
-      "-v"
     ]
   },
-  "generated_at": 1777187974.0755632
+  "generated_at": 1777188158.8095243
 }

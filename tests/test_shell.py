@@ -32,7 +32,7 @@ def cache_dir(tmp_path):
     return tmp_path
 
 
-def _bash_complete(cache_dir: Path, comp_words: list[str], comp_cword: int) -> list[str]:
+def _bash_complete(cache_dir: Path, comp_words: list[str], comp_cword: int, func: str = "_django_manage_completion") -> list[str]:
     words_str = " ".join(f'"{w}"' for w in comp_words)
     result = subprocess.run(
         ["bash", "-c", f"""
@@ -40,7 +40,7 @@ source {BASH_SCRIPT}
 cd {cache_dir}
 COMP_WORDS=({words_str})
 COMP_CWORD={comp_cword}
-_django_manage_completion
+{func}
 echo "${{COMPREPLY[@]}}"
 """],
         capture_output=True,
@@ -82,6 +82,34 @@ def test_bash_completes_options(cache_dir):
 def test_bash_no_cache_returns_nothing(tmp_path):
     # tmp_path has no cache file — walk up should find nothing
     completions = _bash_complete(tmp_path, ["manage.py", ""], 1)
+    assert completions == []
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
+def test_bash_python_manage_completes_commands(cache_dir):
+    completions = _bash_complete(cache_dir, ["python", "manage.py", ""], 2, "_django_python_completion")
+    assert "migrate" in completions
+    assert "runserver" in completions
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
+def test_bash_python3_manage_completes_commands(cache_dir):
+    completions = _bash_complete(cache_dir, ["python3", "manage.py", ""], 2, "_django_python_completion")
+    assert "migrate" in completions
+    assert "runserver" in completions
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
+def test_bash_python_manage_completes_options(cache_dir):
+    completions = _bash_complete(cache_dir, ["python", "manage.py", "migrate", ""], 3, "_django_python_completion")
+    assert "--fake" in completions
+    assert "--database" in completions
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
+def test_bash_python_without_manage_returns_nothing(cache_dir):
+    # python TAB with no manage.py — should not activate django completion
+    completions = _bash_complete(cache_dir, ["python", ""], 1, "_django_python_completion")
     assert completions == []
 
 
