@@ -48,6 +48,30 @@ def _is_installed(rc_path: Path) -> bool:
         return False
 
 
+def _remove_rc_block(rc_path: Path) -> bool:
+    """Strip the marker-delimited block from rc_path; return True if anything was removed."""
+    try:
+        text = rc_path.read_text()
+    except OSError:
+        return False
+
+    if _MARKER_BEGIN not in text:
+        return False
+
+    filtered = []
+    inside = False
+    for line in text.splitlines(keepends=True):
+        if line.strip() == _MARKER_BEGIN:
+            inside = True
+        elif line.strip() == _MARKER_END:
+            inside = False
+        elif not inside:
+            filtered.append(line)
+
+    rc_path.write_text("".join(filtered))
+    return True
+
+
 class Command(BaseCommand):
     help = "Manage Django shell autocompletion"
 
@@ -132,24 +156,19 @@ class Command(BaseCommand):
     def _uninstall(self, options: dict[str, Any]) -> None:
         """Remove the marker-delimited completion block from all shell RC files."""
         for shell, rc_path in _SHELL_RC.items():
+            if _remove_rc_block(rc_path):
+                self.stdout.write(self.style.SUCCESS(f"Removed {shell} completion from {rc_path}"))
+
+        for script_name in _SCRIPT_NAMES.values():
+            script_path = _INSTALL_DIR / script_name
             try:
-                text = rc_path.read_text()
-            except OSError:
-                continue
+                script_path.unlink()
+                self.stdout.write(self.style.SUCCESS(f"Deleted {script_path}"))
+            except FileNotFoundError:
+                pass
 
-            if _MARKER_BEGIN not in text:
-                continue
-
-            lines = text.splitlines(keepends=True)
-            filtered = []
-            inside = False
-            for line in lines:
-                if line.strip() == _MARKER_BEGIN:
-                    inside = True
-                elif line.strip() == _MARKER_END:
-                    inside = False
-                elif not inside:
-                    filtered.append(line)
-
-            rc_path.write_text("".join(filtered))
-            self.stdout.write(self.style.SUCCESS(f"Removed {shell} completion from {rc_path}"))
+        try:
+            _INSTALL_DIR.rmdir()
+            self.stdout.write(self.style.SUCCESS(f"Removed {_INSTALL_DIR}"))
+        except (FileNotFoundError, OSError):
+            pass
