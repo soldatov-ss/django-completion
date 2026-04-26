@@ -61,6 +61,7 @@ test = [
 ]
 typecheck = [
     "ty",
+    "tomli",
 ]
 docs = [
     "zensical",
