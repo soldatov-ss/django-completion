@@ -24,3 +24,9 @@ repos:
         args: [ "--config=pyproject.toml", "--fix" ]
       - id: ruff-format
         args: [ "--config=pyproject.toml" ]
+
+  - repo: https://github.com/adamchainz/django-upgrade
+    rev: 1.30.0
+    hooks:
+      - id: django-upgrade
+        args: [ --target-version, "4.2" ]
