@@ -15,41 +15,34 @@ _django_manage_find_cache() {
     done
 }
 
-# ---------------------------------------------------------------------------
-# Completion for: manage.py <tab>
-# ---------------------------------------------------------------------------
-
-_django_manage_completion() {
+_django_complete_with_helper() {
     local cur="${COMP_WORDS[COMP_CWORD]}"
     local cache_file
     cache_file="$(_django_manage_find_cache)"
     [[ -z "$cache_file" ]] && return 0
 
-    if [[ ${COMP_CWORD} -eq 1 ]]; then
-        # First positional argument — complete command names
-        local commands
-        commands=$(CACHE_FILE="$cache_file" python3 -c '
-import json, os
-data = json.load(open(os.environ["CACHE_FILE"]))
-print(" ".join(data.get("commands", [])))
+    local words_json
+    words_json=$(printf '%s\n' "${COMP_WORDS[@]}" | python3 -c '
+import json, sys
+print(json.dumps(sys.stdin.read().splitlines()))
 ' 2>/dev/null)
-        COMPREPLY=($(compgen -W "$commands" -- "$cur"))
+    [[ -z "$words_json" ]] && return 0
 
-    elif [[ ${COMP_CWORD} -ge 2 ]]; then
-        # Second+ argument — complete options or app labels depending on prefix
-        local cmd="${COMP_WORDS[1]}"
-        local candidates
-        candidates=$(CACHE_FILE="$cache_file" CMD="$cmd" CUR="$cur" python3 -c '
-import json, os
-data = json.load(open(os.environ["CACHE_FILE"]))
-cur = os.environ["CUR"]
-opts = data.get("command_options", {}).get(os.environ["CMD"], [])
-apps = [entry.get("label", "") for entry in data.get("app_labels", [])]
-values = opts if cur.startswith("-") else [*apps, *opts]
-print(" ".join(v for v in values if v))
-' 2>/dev/null)
-        COMPREPLY=($(compgen -W "$candidates" -- "$cur"))
-    fi
+    local candidates
+    candidates=$(python3 -m django_completion._complete \
+        --cache "$cache_file" \
+        --words-json "$words_json" \
+        --cword "$COMP_CWORD" \
+        --format bash 2>/dev/null)
+    COMPREPLY=($(compgen -W "$candidates" -- "$cur"))
+}
+
+# ---------------------------------------------------------------------------
+# Completion for: manage.py <tab>
+# ---------------------------------------------------------------------------
+
+_django_manage_completion() {
+    _django_complete_with_helper
 }
 
 # ---------------------------------------------------------------------------
@@ -57,54 +50,14 @@ print(" ".join(v for v in values if v))
 # ---------------------------------------------------------------------------
 
 _django_python_completion() {
-    local cur="${COMP_WORDS[COMP_CWORD]}"
-
-    # Only activate when manage.py appears in already-typed words
-    local manage_idx=-1 i
-    for (( i=1; i<COMP_CWORD; i++ )); do
-        if [[ "${COMP_WORDS[$i]}" == *manage.py ]]; then
-            manage_idx=$i
-            break
-        fi
-    done
-    [[ $manage_idx -eq -1 ]] && return 0
-
-    local cache_file
-    cache_file="$(_django_manage_find_cache)"
-    [[ -z "$cache_file" ]] && return 0
-
-    local pos=$(( COMP_CWORD - manage_idx ))
-
-    if [[ ${pos} -eq 1 ]]; then
-        # First argument after manage.py — complete command names
-        local commands
-        commands=$(CACHE_FILE="$cache_file" python3 -c '
-import json, os
-data = json.load(open(os.environ["CACHE_FILE"]))
-print(" ".join(data.get("commands", [])))
-' 2>/dev/null)
-        COMPREPLY=($(compgen -W "$commands" -- "$cur"))
-
-    elif [[ ${pos} -ge 2 ]]; then
-        # Subsequent arguments — complete options or app labels
-        local cmd="${COMP_WORDS[$((manage_idx + 1))]}"
-        local candidates
-        candidates=$(CACHE_FILE="$cache_file" CMD="$cmd" CUR="$cur" python3 -c '
-import json, os
-data = json.load(open(os.environ["CACHE_FILE"]))
-cur = os.environ["CUR"]
-opts = data.get("command_options", {}).get(os.environ["CMD"], [])
-apps = [entry.get("label", "") for entry in data.get("app_labels", [])]
-values = opts if cur.startswith("-") else [*apps, *opts]
-print(" ".join(v for v in values if v))
-' 2>/dev/null)
-        COMPREPLY=($(compgen -W "$candidates" -- "$cur"))
-    fi
+    _django_complete_with_helper
 }
 
 # ---------------------------------------------------------------------------
 # Register completions
 # ---------------------------------------------------------------------------
 
+# Path-like ./manage.py as the first shell word needs a default completion hook,
+# which is intentionally out of scope; wrapped forms such as python ./manage.py work.
 complete -F _django_manage_completion manage.py
-complete -o default -F _django_python_completion python python3
+complete -o default -F _django_python_completion python python3 uv

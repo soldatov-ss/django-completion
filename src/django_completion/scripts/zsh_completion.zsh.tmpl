@@ -12,52 +12,42 @@ _django_manage_find_cache() {
     done
 }
 
+_django_complete_with_helper() {
+    local tag="$1"
+    local description="$2"
+
+    local cache_file
+    cache_file="$(_django_manage_find_cache)"
+    [[ -z "$cache_file" ]] && return 1
+
+    local words_json
+    words_json=$(printf '%s\n' "${words[@]}" | python3 -c '
+import json, sys
+print(json.dumps(sys.stdin.read().splitlines()))
+' 2>/dev/null)
+    [[ -z "$words_json" ]] && return 1
+
+    local cword=$(( CURRENT - 1 ))
+    local -a candidates
+    candidates=(${(f)"$(python3 -m django_completion._complete \
+        --cache "$cache_file" \
+        --words-json "$words_json" \
+        --cword "$cword" \
+        --format zsh 2>/dev/null)"})
+    (( ${#candidates[@]} == 0 )) && return 1
+
+    _describe -t "$tag" "$description" candidates
+}
+
 # ---------------------------------------------------------------------------
 # Completion for: manage.py <tab>
 # ---------------------------------------------------------------------------
 
 _django_manage() {
-    local cache_file
-    cache_file="$(_django_manage_find_cache)"
-    [[ -z "$cache_file" ]] && return 1
-
     if (( CURRENT == 2 )); then
-        # First positional argument — complete command names with descriptions
-        local -a commands
-        commands=(${(f)"$(CACHE_FILE="$cache_file" python3 -c '
-import json, os
-data = json.load(open(os.environ["CACHE_FILE"]))
-help_by_command = data.get("command_help", {})
-for command in data.get("commands", []):
-    desc = help_by_command.get(command, "").replace(":", "\\:")
-    print(f"{command}:{desc}")
-' 2>/dev/null)"})
-        _describe -t commands "django command" commands
-
+        _django_complete_with_helper commands "django command"
     elif (( CURRENT >= 3 )); then
-        # Second+ argument — complete options or app labels depending on prefix
-        local cmd="${words[2]}"
-        local cur="${words[CURRENT]}"
-        local -a candidates
-        candidates=(${(f)"$(CACHE_FILE="$cache_file" CMD="$cmd" CUR="$cur" python3 -c '
-import json, os
-data = json.load(open(os.environ["CACHE_FILE"]))
-cur = os.environ["CUR"]
-cmd = os.environ["CMD"]
-opts = data.get("command_options", {}).get(cmd, [])
-option_descriptions = data.get("command_option_descriptions", {}).get(cmd, {})
-apps = data.get("app_labels", [])
-if not cur.startswith("-"):
-    for app in apps:
-        label = app.get("label", "")
-        origin = app.get("origin", "pip")
-        if label:
-            print(f"{label}:[{origin}]")
-for opt in opts:
-    desc = option_descriptions.get(opt, "").replace(":", "\\:")
-    print(f"{opt}:{desc}")
-' 2>/dev/null)"})
-        _describe -t arguments "django argument" candidates
+        _django_complete_with_helper arguments "django argument"
     fi
 }
 
@@ -66,7 +56,7 @@ for opt in opts:
 # ---------------------------------------------------------------------------
 
 _django_python_manage() {
-    # Only activate when manage.py appears in already-typed words
+    # Only activate when manage.py appears in already-typed words.
     local manage_pos=-1 i
     for (( i=2; i<CURRENT; i++ )); do
         if [[ "${words[$i]}" == *manage.py ]]; then
@@ -80,49 +70,12 @@ _django_python_manage() {
         return
     fi
 
-    local cache_file
-    cache_file="$(_django_manage_find_cache)"
-    [[ -z "$cache_file" ]] && return 1
-
     local relative_current=$(( CURRENT - manage_pos ))
 
     if (( relative_current == 1 )); then
-        # First argument after manage.py — complete command names with descriptions
-        local -a commands
-        commands=(${(f)"$(CACHE_FILE="$cache_file" python3 -c '
-import json, os
-data = json.load(open(os.environ["CACHE_FILE"]))
-help_by_command = data.get("command_help", {})
-for command in data.get("commands", []):
-    desc = help_by_command.get(command, "").replace(":", "\\:")
-    print(f"{command}:{desc}")
-' 2>/dev/null)"})
-        _describe -t commands "django command" commands
-
+        _django_complete_with_helper commands "django command"
     elif (( relative_current >= 2 )); then
-        # Subsequent arguments — complete options or app labels
-        local cmd="${words[$((manage_pos + 1))]}"
-        local cur="${words[CURRENT]}"
-        local -a candidates
-        candidates=(${(f)"$(CACHE_FILE="$cache_file" CMD="$cmd" CUR="$cur" python3 -c '
-import json, os
-data = json.load(open(os.environ["CACHE_FILE"]))
-cur = os.environ["CUR"]
-cmd = os.environ["CMD"]
-opts = data.get("command_options", {}).get(cmd, [])
-option_descriptions = data.get("command_option_descriptions", {}).get(cmd, {})
-apps = data.get("app_labels", [])
-if not cur.startswith("-"):
-    for app in apps:
-        label = app.get("label", "")
-        origin = app.get("origin", "pip")
-        if label:
-            print(f"{label}:[{origin}]")
-for opt in opts:
-    desc = option_descriptions.get(opt, "").replace(":", "\\:")
-    print(f"{opt}:{desc}")
-' 2>/dev/null)"})
-        _describe -t arguments "django argument" candidates
+        _django_complete_with_helper arguments "django argument"
     fi
 }
 
@@ -131,4 +84,4 @@ for opt in opts:
 # ---------------------------------------------------------------------------
 
 compdef _django_manage manage.py
-compdef _django_python_manage python python3
+compdef _django_python_manage python python3 uv

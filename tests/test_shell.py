@@ -17,6 +17,7 @@ ZSH_SCRIPT = SCRIPTS_DIR / "zsh_completion.zsh.tmpl"
 def cache_dir(tmp_path):
     """A temp directory containing a pre-built completion cache."""
     data = {
+        "schema_version": 2,
         "commands": ["migrate", "runserver", "shell", "makemigrations", "startapp"],
         "command_help": {
             "migrate": "Updates database schema",
@@ -38,6 +39,11 @@ def cache_dir(tmp_path):
                 "--run-syncdb": "Create tables for apps without migrations",
             }
         },
+        "migrations": {
+            "myapp": ["0001_initial", "0002_add_user"],
+            "auth": ["0001_initial"],
+        },
+        "warnings": [],
         "generated_at": 9_999_999_999,
     }
     (tmp_path / ".django-completion-cache.json").write_text(json.dumps(data))
@@ -91,16 +97,33 @@ def test_bash_filters_by_prefix(cache_dir):
 
 @pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
 def test_bash_completes_options(cache_dir):
-    completions = _bash_complete(cache_dir, ["manage.py", "migrate", ""], 2)
+    completions = _bash_complete(cache_dir, ["manage.py", "migrate", "--"], 2)
     assert "--fake" in completions
     assert "--database" in completions
 
 
 @pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
-def test_bash_completes_app_labels(cache_dir):
+def test_bash_shell_completes_app_labels_and_options(cache_dir):
+    completions = _bash_complete(cache_dir, ["manage.py", "runserver", ""], 2)
+    assert "myapp" in completions
+    assert "auth" in completions
+    assert "--noreload" in completions
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
+def test_bash_migrate_completes_migration_apps(cache_dir):
     completions = _bash_complete(cache_dir, ["manage.py", "migrate", ""], 2)
     assert "myapp" in completions
     assert "auth" in completions
+    assert "--fake" not in completions
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
+def test_bash_migrate_completes_migration_names(cache_dir):
+    completions = _bash_complete(cache_dir, ["manage.py", "migrate", "myapp", ""], 3)
+    assert "0001_initial" in completions
+    assert "0002_add_user" in completions
+    assert "zero" in completions
 
 
 @pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
@@ -134,8 +157,22 @@ def test_bash_python3_manage_completes_commands(cache_dir):
 @pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
 def test_bash_python_manage_completes_options(cache_dir):
     completions = _bash_complete(cache_dir, ["python", "manage.py", "migrate", ""], 3, "_django_python_completion")
-    assert "--fake" in completions
-    assert "--database" in completions
+    assert "myapp" in completions
+    assert "auth" in completions
+    assert "--fake" not in completions
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
+def test_bash_python_manage_migrate_completes_migration_names(cache_dir):
+    completions = _bash_complete(
+        cache_dir,
+        ["python", "manage.py", "migrate", "myapp", ""],
+        4,
+        "_django_python_completion",
+    )
+    assert "0001_initial" in completions
+    assert "0002_add_user" in completions
+    assert "zero" in completions
 
 
 @pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
@@ -143,6 +180,13 @@ def test_bash_python_without_manage_returns_nothing(cache_dir):
     # python TAB with no manage.py — should not activate django completion
     completions = _bash_complete(cache_dir, ["python", ""], 1, "_django_python_completion")
     assert completions == []
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
+def test_bash_uv_run_python_manage_completes_commands(cache_dir):
+    completions = _bash_complete(cache_dir, ["uv", "run", "python", "manage.py", ""], 4, "_django_python_completion")
+    assert "migrate" in completions
+    assert "runserver" in completions
 
 
 @pytest.mark.skipif(not shutil.which("zsh"), reason="zsh not available")
@@ -160,8 +204,23 @@ def test_zsh_script_sources_without_error(cache_dir):
 
 def test_zsh_template_uses_descriptions():
     text = ZSH_SCRIPT.read_text()
-    assert "_describe -t commands" in text
-    assert "_describe -t arguments" in text
+    assert '_describe -t "$tag" "$description" candidates' in text
+    assert '_django_complete_with_helper commands "django command"' in text
+    assert '_django_complete_with_helper arguments "django argument"' in text
+
+
+def test_bash_helper_is_invoked():
+    text = BASH_SCRIPT.read_text()
+    assert "django_completion._complete" in text
+    assert "python3 -m django_completion._complete" in text
+    assert "complete -o default -F _django_python_completion python python3 uv" in text
+
+
+def test_zsh_helper_is_invoked():
+    text = ZSH_SCRIPT.read_text()
+    assert "django_completion._complete" in text
+    assert "python3 -m django_completion._complete" in text
+    assert "compdef _django_python_manage python python3 uv" in text
 
 
 # ── Full integration: refresh command writes a valid cache ──────────────────
