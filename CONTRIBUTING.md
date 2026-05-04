@@ -8,7 +8,7 @@ You can contribute in many ways:
 
 ### Report Bugs
 
-Report bugs at https://github.com/soldatov-ss/django_completion/issues.
+Report bugs at https://github.com/soldatov-ss/django-completion/issues.
 
 If you are reporting a bug, please include:
 
@@ -38,7 +38,7 @@ This starts a local server at http://localhost:8000 with live reload. Edit files
 
 ### Submit Feedback
 
-The best way to send feedback is to file an issue at https://github.com/soldatov-ss/django_completion/issues.
+The best way to send feedback is to file an issue at https://github.com/soldatov-ss/django-completion/issues.
 
 If you are proposing a feature:
 
@@ -48,19 +48,19 @@ If you are proposing a feature:
 
 ## Get Started!
 
-Ready to contribute? Here's how to set up `django_completion` for local development.
+Ready to contribute? Here's how to set up `django-completion` for local development.
 
-1. Fork the `django_completion` repo on GitHub.
+1. Fork the `django-completion` repo on GitHub.
 2. Clone your fork locally:
 
    ```sh
-   git clone git@github.com:your_name_here/django_completion.git
+   git clone git@github.com:your_name_here/django-completion.git
    ```
 
 3. Install your local copy with uv:
 
    ```sh
-   cd django_completion/
+   cd django-completion/
    uv sync
    ```
 
@@ -99,8 +99,8 @@ Ready to contribute? Here's how to set up `django_completion` for local developm
 Before you submit a pull request, check that it meets these guidelines:
 
 1. The pull request should include tests.
-2. If the pull request adds functionality, the docs should be updated. Put your new functionality into a function with a docstring, and add the feature to the list in README.md.
-3. The pull request should work for Python 3.12, 3.13, and 3.14. Tests run in GitHub Actions on every pull request to the main branch, make sure that the tests pass for all supported Python versions.
+2. If the pull request adds user-facing behavior, update the docs or README as appropriate.
+3. The pull request should work for Python 3.10, 3.11, 3.12, 3.13, and 3.14. Tests run in GitHub Actions on every pull request to the main branch, so make sure that the tests pass for all supported Python versions.
 
 ## Tips
 
