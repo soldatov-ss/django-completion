@@ -1,8 +1,16 @@
 # Troubleshooting
 
+Start with the verbose status output:
+
+```bash
+python manage.py autocomplete status --verbose
+```
+
+It shows the cache path, schema version, migration counts, warning count, shell hook paths, installed script versions, and package version.
+
 ## Tab completion shows nothing
 
-**Check that the hook is installed:**
+Check that the hook is installed and the script is current:
 
 ```bash
 python manage.py autocomplete status
@@ -15,39 +23,54 @@ python manage.py autocomplete install
 source ~/.bashrc  # or ~/.zshrc
 ```
 
-**Check that the cache exists:**
-
-The status command will show `Cache: not found` if the cache has never been built. Run:
+If the cache shows `not found`, build it:
 
 ```bash
 python manage.py autocomplete refresh
 ```
 
-**Check that you reloaded your shell:**
+Also check that you reloaded your shell. Completion scripts are not active in terminals that were already open before install.
 
-After install, you must source your RC file or open a new terminal. The completion script is not active in shells that were open before install.
+## I upgraded but migration completion does not work
 
-## Completion stopped working after I added an app or command
-
-The cache may be stale. Force a rebuild:
+Run:
 
 ```bash
-python manage.py autocomplete refresh
+python manage.py autocomplete status
 ```
 
-If auto-refresh is enabled (the default), the cache updates automatically within 60 seconds after the next `manage.py` command.
+Look for:
+
+- `Schema: v1 (outdated)` — run `python manage.py autocomplete refresh`
+- `bash script: outdated` or `zsh script: outdated` — run `python manage.py autocomplete install --shell bash` or `--shell zsh`
+- `Apps with migrations: 0` — confirm the project has migration files and inspect `status --verbose` warnings
+
+The Python package and the generated shell script can get out of sync after an upgrade. Re-running `autocomplete install` overwrites the managed script with the current package version.
 
 ## Wrong shell was detected
 
 `autocomplete install` reads `$SHELL` to detect your shell. If it installs for the wrong one, specify explicitly:
 
 ```bash
+python manage.py autocomplete install --shell bash
 python manage.py autocomplete install --shell zsh
 ```
 
+Then reload the matching RC file.
+
+## Cache is stale
+
+Force a rebuild:
+
+```bash
+python manage.py autocomplete refresh
+```
+
+If auto-refresh is enabled, the cache also updates automatically within 60 seconds after the next `manage.py` command. If you set `DJANGO_COMPLETION_AUTO_REFRESH = False`, manual refresh is required.
+
 ## zsh completions are not showing
 
-Make sure your zsh is set up to use the completion system. Add this to `~/.zshrc` before the source block if it is not already present:
+Make sure zsh's completion system is initialized. Add this before the django-completion source block if it is not already present:
 
 ```zsh
 autoload -Uz compinit && compinit
@@ -59,9 +82,18 @@ Then reload:
 source ~/.zshrc
 ```
 
+If descriptions look wrong or completion is empty, run `python manage.py autocomplete status --verbose` and check the zsh hook and zsh script lines.
+
 ## I use `uv run python manage.py`
 
-The shell scripts match any word ending in `manage.py`, so `uv run python manage.py <TAB>` should work. If it does not, check that the completion script was sourced (`autocomplete status`) and that the cache exists.
+v0.2.0 supports:
+
+```bash
+uv run python manage.py <TAB>
+uv run python ./manage.py <TAB>
+```
+
+If it does not work, check that your shell has sourced the current script and that status reports a current script. If a separate `uv` shell integration takes precedence, source order may matter.
 
 ## How do I uninstall completely?
 
@@ -77,13 +109,28 @@ pip uninstall django-completion
 
 ## Will this touch my database?
 
-No. Tab completion reads only the local cache file. The cache builder inspects Django's app registry and management command registry — it does not query the database.
+No. Tab completion reads only the local cache file. Cache refresh inspects Django's app registry, management command registry, command parsers, and migration files on disk. It does not query the database and does not inspect applied/unapplied migration state.
+
+## Does this work with Docker?
+
+Docker can work, but v0.2.0 does not provide full Docker-specific integration.
+
+The usual pattern is:
+
+- install django-completion inside the Django environment or container
+- run `python manage.py autocomplete refresh` where Django can import settings
+- keep the project directory mounted so the host shell can read `.django-completion-cache.json`
+- install the shell hook on the host if the host shell is where you press Tab
+
+Installing shell hooks inside short-lived containers is usually not useful because the shell RC file and generated scripts disappear with the container.
 
 ## Is it safe in production?
 
-The package has no middleware, models, migrations, or request-time behavior. If accidentally present in production settings it will not cause harm, but the recommendation is to install it in development only:
+The package has no middleware, models, migrations, or request-time behavior. If accidentally present in production settings it should not affect requests, but the recommendation is to install it in development only:
 
 ```python
 if DEBUG:
     INSTALLED_APPS += ["django_completion"]
 ```
+
+Use the environment switch that matches your deployment setup.

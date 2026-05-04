@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "django-completion"
-version = "0.1.0"
+version = "0.2.0"
 description = "Shell autocomplete and intelligent suggestions for Django's manage.py"
 readme = "README.md"
 authors = [
@@ -14,7 +14,7 @@ maintainers = [
   {name = "Soldatov Serhii", email = "soldatov.own@gmail.com"}
 ]
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Framework :: Django",
     "Framework :: Django :: 4.2",

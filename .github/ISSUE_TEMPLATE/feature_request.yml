@@ -22,9 +22,26 @@ body:
       label: Alternatives considered
     validations:
       required: false
+  - type: input
+    id: invocation-style
+    attributes:
+      label: Invocation style
+      description: If this is completion-related, which command style should it support?
+      placeholder: "python manage.py, ./manage.py, uv run python manage.py"
+    validations:
+      required: false
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: If relevant, include OS, shell, Python version, Django version, and install method.
+      placeholder: "Linux, zsh, Python 3.12, Django 5.2, uv add"
+    validations:
+      required: false
   - type: textarea
     id: context
     attributes:
       label: Additional context
+      description: For completion behavior, paste `python manage.py autocomplete status --verbose` if available.
     validations:
       required: false
