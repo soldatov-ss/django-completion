@@ -22,7 +22,7 @@ $ python manage.py runserver --<TAB>
 
 - **GitHub:** https://github.com/soldatov-ss/django-completion/
 - **PyPI:** https://pypi.org/project/django-completion/
-- **Docs:** https://soldatov-ss.github.io/django_completion/
+- **Docs:** https://soldatov-ss.github.io/django-completion/
 - **License:** MIT
 
 ## Installation
