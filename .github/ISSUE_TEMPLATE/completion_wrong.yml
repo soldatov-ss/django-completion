@@ -1,24 +1,17 @@
-name: Bug Report
-description: Something is not working as expected.
-title: "BUG: "
-labels: [bug]
+name: Completion Missing or Wrong
+description: Report incorrect, missing, or stale shell completion candidates.
+title: "COMPLETION: "
+labels: [bug, completion]
 body:
   - type: textarea
-    id: description
+    id: problem
     attributes:
-      label: Describe the bug
-      description: What happened? What did you expect to happen?
-    validations:
-      required: true
-  - type: textarea
-    id: steps
-    attributes:
-      label: Steps to reproduce
-      description: Minimal steps to trigger the bug.
+      label: What completion is wrong?
+      description: Include the exact command line where you pressed Tab and what appeared.
       placeholder: |
-        1. Install with `uv add django-completion`
-        2. Run `python manage.py autocomplete install`
-        3. Press Tab after `python manage.py migrate `
+        Command: `python manage.py migrate accounts <TAB>`
+        Expected: `0001_initial 0002_add_profile zero`
+        Actual: no completions
     validations:
       required: true
   - type: textarea
@@ -86,9 +79,9 @@ body:
     validations:
       required: true
   - type: textarea
-    id: context
+    id: notes
     attributes:
-      label: Additional context
-      description: Logs, tracebacks, screenshots, shell config snippets, or anything else that helps.
+      label: Extra details
+      description: Mention custom `MIGRATION_MODULES`, Docker, shell plugins, aliases, or wrappers if relevant.
     validations:
       required: false

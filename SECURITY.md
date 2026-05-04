@@ -2,7 +2,7 @@
 
 ## Reporting a Vulnerability
 
-If you find a security vulnerability in django-completion, please report it through [GitHub's private vulnerability reporting](https://github.com/soldatov-ss/django_completion/security/advisories/new). This keeps the details private while we work on a fix.
+If you find a security vulnerability in django-completion, please report it through [GitHub's private vulnerability reporting](https://github.com/soldatov-ss/django-completion/security/advisories/new). This keeps the details private while we work on a fix.
 
 Please include:
 
@@ -25,7 +25,7 @@ This project ships with security hardening out of the box:
 
 This is a volunteer-maintained open source project. Security reports are taken seriously, but there are no guaranteed response times.
 
-**Enterprise support** is available, with priority response SLAs. Contact soldatov.own@gmail.com for details.
+For urgent follow-up on a submitted report, contact soldatov.own@gmail.com and include the GitHub advisory link.
 
 ## Supported Versions
 

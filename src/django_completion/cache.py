@@ -1,7 +1,14 @@
+import importlib.util
 import json
 from pathlib import Path
 import threading
 import time
+
+from django.apps import apps
+from django.conf import settings
+from django.core import management
+
+from django_completion.classify import classify_app
 
 CACHE_FILENAME = ".django-completion-cache.json"
 COOLDOWN_SECONDS = 60
@@ -19,17 +26,68 @@ def _cache_path() -> Path:
     return Path.cwd() / CACHE_FILENAME
 
 
+def _migration_module_path(app_config, migration_modules: dict) -> str | None:
+    """Return the configured migrations module path for an app, or None when disabled."""
+    if app_config.label in migration_modules:
+        return migration_modules[app_config.label]
+    return f"{app_config.name}.migrations"
+
+
+def _migration_names_from_module(module_path: str) -> list[str]:
+    """List public migration module names from a migrations package."""
+    spec = importlib.util.find_spec(module_path)
+    if spec is None or spec.submodule_search_locations is None:
+        raise ModuleNotFoundError(f"No module named {module_path!r}")
+
+    names: set[str] = set()
+    for location in spec.submodule_search_locations:
+        migrations_dir = Path(location)
+        if not migrations_dir.is_dir():
+            continue
+        for path in migrations_dir.iterdir():
+            if not path.is_file() or path.suffix != ".py":
+                continue
+            if path.name == "__init__.py" or path.name.startswith((".", "_")):
+                continue
+            names.add(path.stem)
+    return sorted(names)
+
+
+def _discover_migrations(app_configs, migration_modules: dict) -> tuple[dict[str, list[str]], list[str]]:
+    """Discover migration names for app configs and collect non-fatal inspection warnings."""
+    migrations: dict[str, list[str]] = {}
+    warnings: list[str] = []
+
+    for app_config in app_configs:
+        module_path = _migration_module_path(app_config, migration_modules)
+        if module_path is None:
+            continue
+        if not isinstance(module_path, str):
+            warnings.append(
+                f"Could not inspect migrations for app '{app_config.label}': "
+                f"MIGRATION_MODULES value must be a string or None"
+            )
+            continue
+        try:
+            migration_names = _migration_names_from_module(module_path)
+        except (ImportError, OSError, ValueError) as exc:
+            warnings.append(f"Could not inspect migrations for app '{app_config.label}' at '{module_path}': {exc}")
+            continue
+        if migration_names:
+            migrations[app_config.label] = migration_names
+    return migrations, warnings
+
+
 def build_cache() -> dict:
-    from django.apps import apps
-    from django.core import management
-
-    from django_completion.classify import classify_app
-
     commands_map = management.get_commands()
     command_names = sorted(commands_map.keys())
 
-    app_labels = [{"label": cfg.label, "origin": classify_app(cfg)} for cfg in apps.get_app_configs()]
+    app_configs = list(apps.get_app_configs())
+    app_labels = [{"label": cfg.label, "origin": classify_app(cfg)} for cfg in app_configs]
     app_labels.sort(key=lambda entry: (entry["origin"] != "local", entry["label"]))
+
+    migration_modules = getattr(settings, "MIGRATION_MODULES", {}) or {}
+    migrations, warnings = _discover_migrations(app_configs, migration_modules)
 
     command_options: dict[str, list[str]] = {}
     command_help: dict[str, str] = {}
@@ -57,11 +115,14 @@ def build_cache() -> dict:
             command_option_descriptions[cmd_name] = {}
 
     return {
+        "schema_version": 2,
         "commands": command_names,
         "app_labels": app_labels,
         "command_help": command_help,
         "command_options": command_options,
         "command_option_descriptions": command_option_descriptions,
+        "migrations": migrations,
+        "warnings": warnings,
         "generated_at": time.time(),
     }
 

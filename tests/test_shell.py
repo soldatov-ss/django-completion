@@ -17,6 +17,7 @@ ZSH_SCRIPT = SCRIPTS_DIR / "zsh_completion.zsh.tmpl"
 def cache_dir(tmp_path):
     """A temp directory containing a pre-built completion cache."""
     data = {
+        "schema_version": 2,
         "commands": ["migrate", "runserver", "shell", "makemigrations", "startapp"],
         "command_help": {
             "migrate": "Updates database schema",
@@ -38,6 +39,11 @@ def cache_dir(tmp_path):
                 "--run-syncdb": "Create tables for apps without migrations",
             }
         },
+        "migrations": {
+            "myapp": ["0001_initial", "0002_add_user"],
+            "auth": ["0001_initial"],
+        },
+        "warnings": [],
         "generated_at": 9_999_999_999,
     }
     (tmp_path / ".django-completion-cache.json").write_text(json.dumps(data))
@@ -91,16 +97,33 @@ def test_bash_filters_by_prefix(cache_dir):
 
 @pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
 def test_bash_completes_options(cache_dir):
-    completions = _bash_complete(cache_dir, ["manage.py", "migrate", ""], 2)
+    completions = _bash_complete(cache_dir, ["manage.py", "migrate", "--"], 2)
     assert "--fake" in completions
     assert "--database" in completions
 
 
 @pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
-def test_bash_completes_app_labels(cache_dir):
+def test_bash_shell_completes_app_labels_and_options(cache_dir):
+    completions = _bash_complete(cache_dir, ["manage.py", "runserver", ""], 2)
+    assert "myapp" in completions
+    assert "auth" in completions
+    assert "--noreload" in completions
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
+def test_bash_migrate_completes_migration_apps(cache_dir):
     completions = _bash_complete(cache_dir, ["manage.py", "migrate", ""], 2)
     assert "myapp" in completions
     assert "auth" in completions
+    assert "--fake" not in completions
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
+def test_bash_migrate_completes_migration_names(cache_dir):
+    completions = _bash_complete(cache_dir, ["manage.py", "migrate", "myapp", ""], 3)
+    assert "0001_initial" in completions
+    assert "0002_add_user" in completions
+    assert "zero" in completions
 
 
 @pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
@@ -134,8 +157,22 @@ def test_bash_python3_manage_completes_commands(cache_dir):
 @pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
 def test_bash_python_manage_completes_options(cache_dir):
     completions = _bash_complete(cache_dir, ["python", "manage.py", "migrate", ""], 3, "_django_python_completion")
-    assert "--fake" in completions
-    assert "--database" in completions
+    assert "myapp" in completions
+    assert "auth" in completions
+    assert "--fake" not in completions
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
+def test_bash_python_manage_migrate_completes_migration_names(cache_dir):
+    completions = _bash_complete(
+        cache_dir,
+        ["python", "manage.py", "migrate", "myapp", ""],
+        4,
+        "_django_python_completion",
+    )
+    assert "0001_initial" in completions
+    assert "0002_add_user" in completions
+    assert "zero" in completions
 
 
 @pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
@@ -143,6 +180,13 @@ def test_bash_python_without_manage_returns_nothing(cache_dir):
     # python TAB with no manage.py — should not activate django completion
     completions = _bash_complete(cache_dir, ["python", ""], 1, "_django_python_completion")
     assert completions == []
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
+def test_bash_uv_run_python_manage_completes_commands(cache_dir):
+    completions = _bash_complete(cache_dir, ["uv", "run", "python", "manage.py", ""], 4, "_django_python_completion")
+    assert "migrate" in completions
+    assert "runserver" in completions
 
 
 @pytest.mark.skipif(not shutil.which("zsh"), reason="zsh not available")
@@ -160,8 +204,23 @@ def test_zsh_script_sources_without_error(cache_dir):
 
 def test_zsh_template_uses_descriptions():
     text = ZSH_SCRIPT.read_text()
-    assert "_describe -t commands" in text
-    assert "_describe -t arguments" in text
+    assert '_describe -t "$tag" "$description" candidates' in text
+    assert '_django_complete_with_helper commands "django command"' in text
+    assert '_django_complete_with_helper arguments "django argument"' in text
+
+
+def test_bash_helper_is_invoked():
+    text = BASH_SCRIPT.read_text()
+    assert "django_completion._complete" in text
+    assert "python3 -m django_completion._complete" in text
+    assert "complete -o default -F _django_python_completion python python3 uv" in text
+
+
+def test_zsh_helper_is_invoked():
+    text = ZSH_SCRIPT.read_text()
+    assert "django_completion._complete" in text
+    assert "python3 -m django_completion._complete" in text
+    assert "compdef _django_python_manage python python3 uv" in text
 
 
 # ── Full integration: refresh command writes a valid cache ──────────────────
@@ -222,3 +281,124 @@ def test_autocomplete_status_with_cache(tmp_path, settings):
     output = out.getvalue()
     assert "Commands:" in output
     assert "Apps:" in output
+
+
+@pytest.fixture
+def isolated_autocomplete_paths(tmp_path, monkeypatch):
+    from django_completion.management.commands import autocomplete
+
+    install_dir = tmp_path / "share" / "django-completion"
+    bashrc = tmp_path / ".bashrc"
+    zshrc = tmp_path / ".zshrc"
+    bashrc.write_text("")
+    zshrc.write_text("")
+
+    monkeypatch.setattr(autocomplete, "_INSTALL_DIR", install_dir)
+    monkeypatch.setattr(
+        autocomplete,
+        "_SHELL_RC",
+        {
+            "bash": bashrc,
+            "zsh": zshrc,
+        },
+    )
+    return autocomplete, install_dir, bashrc, zshrc
+
+
+@pytest.mark.django_db
+def test_autocomplete_install_writes_version_marker_and_status_current(tmp_path, settings, isolated_autocomplete_paths):
+    settings.BASE_DIR = str(tmp_path)
+    autocomplete, install_dir, _, _ = isolated_autocomplete_paths
+
+    from django.core.management import call_command
+
+    call_command("autocomplete", "install", "--shell", "bash", stdout=io.StringIO(), no_color=True)
+
+    script_path = install_dir / "completion.bash"
+    first_line = script_path.read_text().splitlines()[0]
+    assert first_line == f"# django-completion version: {autocomplete._package_version()}"
+
+    out = io.StringIO()
+    call_command("autocomplete", "status", stdout=out, no_color=True)
+    output = out.getvalue()
+    assert "Schema: v2 (current)" in output
+    assert "Apps with migrations:" in output
+    assert "Warnings:" in output
+    assert "bash script: current" in output
+
+
+@pytest.mark.django_db
+def test_autocomplete_status_reports_outdated_script(tmp_path, settings, isolated_autocomplete_paths):
+    settings.BASE_DIR = str(tmp_path)
+    _, install_dir, _, _ = isolated_autocomplete_paths
+
+    from django.core.management import call_command
+
+    call_command("autocomplete", "install", "--shell", "bash", stdout=io.StringIO(), no_color=True)
+    script_path = install_dir / "completion.bash"
+    lines = script_path.read_text().splitlines()
+    lines[0] = "# django-completion version: 0.0.1"
+    script_path.write_text("\n".join(lines))
+
+    out = io.StringIO()
+    call_command("autocomplete", "status", stdout=out, no_color=True)
+    assert "bash script: outdated (script v0.0.1, package v" in out.getvalue()
+
+
+@pytest.mark.django_db
+def test_autocomplete_status_reports_v1_cache_outdated(tmp_path, settings, isolated_autocomplete_paths):
+    settings.BASE_DIR = str(tmp_path)
+    cache_file = tmp_path / ".django-completion-cache.json"
+    cache_file.write_text(
+        json.dumps(
+            {
+                "commands": ["migrate"],
+                "app_labels": [{"label": "auth", "origin": "pip"}],
+                "generated_at": 9_999_999_999,
+            }
+        )
+    )
+
+    from django.core.management import call_command
+
+    out = io.StringIO()
+    call_command("autocomplete", "status", stdout=out, no_color=True)
+    output = out.getvalue()
+    assert "Schema: v1 (outdated)" in output
+    assert "Apps with migrations: 0" in output
+
+
+@pytest.mark.django_db
+def test_autocomplete_status_verbose_outputs_diagnostics(tmp_path, settings, isolated_autocomplete_paths):
+    settings.BASE_DIR = str(tmp_path)
+    _, install_dir, _, _ = isolated_autocomplete_paths
+    cache_file = tmp_path / ".django-completion-cache.json"
+    cache_file.write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "commands": ["migrate", "shell"],
+                "app_labels": [{"label": "auth", "origin": "pip"}],
+                "migrations": {"auth": ["0001_initial"]},
+                "warnings": ["Could not inspect migrations for app 'legacy'"],
+                "generated_at": 1_771_920_000,
+            }
+        )
+    )
+    install_dir.mkdir(parents=True)
+    (install_dir / "completion.bash").write_text("# django-completion version: 0.0.1\n")
+
+    from django.core.management import call_command
+
+    out = io.StringIO()
+    call_command("autocomplete", "status", "--verbose", stdout=out, no_color=True)
+    output = out.getvalue()
+    assert f"Cache path: {cache_file}" in output
+    assert "Generated: 2026-02-24 08:00:00 UTC" in output
+    assert "Schema version: 2" in output
+    assert "Apps with migrations: 1 (auth)" in output
+    assert "Warnings: 1" in output
+    assert "bash hook:" in output
+    assert "bash script:" in output
+    assert "(v0.0.1, outdated)" in output
+    assert "Package version:" in output

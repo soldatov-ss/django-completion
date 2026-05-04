@@ -1,5 +1,7 @@
 # Installation
 
+Install django-completion in the same Python environment as your Django project. It is a Django app, not a global shell utility.
+
 ## 1. Install the package
 
 ```bash
@@ -17,12 +19,14 @@ INSTALLED_APPS = [
 ]
 ```
 
-For teams that prefer to keep it out of production:
+For teams that prefer to keep development tools out of production:
 
 ```python
 if DEBUG:
     INSTALLED_APPS += ["django_completion"]
 ```
+
+`DEBUG` is not always the right environment switch. Separate settings modules or a custom environment flag may be a better fit for some deployments.
 
 ## 3. Install the shell hook
 
@@ -39,9 +43,9 @@ python manage.py autocomplete install --shell zsh
 
 The command:
 
-- writes a completion script to `~/.local/share/django-completion/`
+- writes a versioned completion script to `~/.local/share/django-completion/`
 - appends a marker-delimited source block to `~/.bashrc` or `~/.zshrc`
-- builds the cache immediately so completion works right away
+- builds `.django-completion-cache.json` immediately so completion works right away
 
 ## 4. Reload your shell
 
@@ -50,7 +54,29 @@ source ~/.bashrc   # bash
 source ~/.zshrc    # zsh
 ```
 
-Tab completion is now active.
+Opening a new terminal works too.
+
+## 5. Check status
+
+```bash
+python manage.py autocomplete status
+```
+
+For bug reports or deeper diagnostics:
+
+```bash
+python manage.py autocomplete status --verbose
+```
+
+## Compatibility
+
+| Area | Supported in v0.2.0 |
+|---|---|
+| Python | 3.10+ |
+| Django | 4.2+ |
+| Shells | bash, zsh |
+| OS | Linux and macOS expected |
+| Windows | not officially supported; WSL with bash/zsh may work |
 
 ## Uninstall
 
@@ -59,6 +85,12 @@ python manage.py autocomplete uninstall
 ```
 
 This removes the shell hook from your RC file, deletes the managed script files, and removes the managed install directory if it is empty. It never touches files outside the managed path.
+
+Then remove `"django_completion"` from `INSTALLED_APPS` and uninstall the package if you no longer need it:
+
+```bash
+pip uninstall django-completion
+```
 
 ## Installing from source
 

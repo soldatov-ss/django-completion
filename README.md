@@ -5,39 +5,29 @@
 ![CI](https://github.com/soldatov-ss/django-completion/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/pypi/l/django-completion.svg)
 
-Shell autocomplete for Django's `manage.py` — complete commands, app labels, and options from your actual project.
+Project-aware shell completion for Django's `manage.py`.
+
+Complete commands, app labels, options, and migration targets from your actual Django project.
+
+```bash
+$ python manage.py migrate <TAB>
+accounts  billing  blog
+
+$ python manage.py migrate accounts <TAB>
+0001_initial  0002_add_profile  zero
+
+$ python manage.py runserver --<TAB>
+--addrport  --ipv6  --noreload  --nothreading
+```
 
 - **GitHub:** https://github.com/soldatov-ss/django-completion/
 - **PyPI:** https://pypi.org/project/django-completion/
 - **Docs:** https://soldatov-ss.github.io/django_completion/
 - **License:** MIT
 
----
-
-## What it does
-
-`django-completion` adds tab completion for `manage.py` in bash and zsh. It reads a local cache built from your Django project, so completions reflect your actual commands, installed apps, and option flags — not a hardcoded list.
-
-Supported invocations:
-
-```bash
-manage.py <TAB>
-python manage.py <TAB>
-python3 manage.py <TAB>
-./manage.py <TAB>
-python ./manage.py <TAB>
-```
-
-What completes in v1:
-
-- Management command names
-- App labels (for commands that accept them)
-- Option flags (e.g. `--fake`, `--database`, `--verbosity`)
-- zsh shows descriptions alongside completions
-
----
-
 ## Installation
+
+Install it in the same environment as your Django project:
 
 ```bash
 pip install django-completion
@@ -45,7 +35,7 @@ pip install django-completion
 uv add django-completion
 ```
 
-Add to `INSTALLED_APPS` in your Django settings:
+Add the app:
 
 ```python
 INSTALLED_APPS = [
@@ -54,81 +44,83 @@ INSTALLED_APPS = [
 ]
 ```
 
-Install the shell hook (auto-detects bash or zsh):
+Install the shell hook:
 
 ```bash
 python manage.py autocomplete install
-
-# or specify the shell explicitly:
-python manage.py autocomplete install --shell bash
-python manage.py autocomplete install --shell zsh
 ```
 
-Then reload your shell:
+Then restart your terminal or reload your shell config:
 
 ```bash
-source ~/.bashrc   # or ~/.zshrc
+source ~/.bashrc   # bash
+source ~/.zshrc    # zsh
 ```
 
-Tab completion is now active.
+## What Completes
 
----
+Supported invocation styles:
+
+```bash
+manage.py <TAB>
+./manage.py <TAB>
+python manage.py <TAB>
+python3 manage.py <TAB>
+python ./manage.py <TAB>
+uv run python manage.py <TAB>
+```
+
+Completion depth:
+
+- command names after `manage.py`
+- app labels and option flags for management commands
+- `migrate` app labels filtered to apps that have migrations
+- migration names and `zero` after `python manage.py migrate app_label`
+- option descriptions in zsh where available
+
+Django can suggest close command names after an error. django-completion prevents many of those errors by completing project-specific commands, app labels, options, and migration targets before you press Enter.
 
 ## Commands
 
-### `autocomplete install`
-
-Writes the completion script to `~/.local/share/django-completion/` and adds a source block to your shell RC file. Builds the cache immediately so completion works right away. Safe to run more than once.
-
-### `autocomplete status`
-
-Shows cache state and shell hook status:
-
-```
-Cache: /path/to/project/.django-completion-cache.json (age 12s, fresh)
-Commands: 28
-Apps: 6
-bash hook: installed
-zsh hook: not installed
-```
-
-### `autocomplete refresh`
-
-Forces a full cache rebuild regardless of the cooldown window. Useful after adding a new app or management command.
-
 ```bash
+python manage.py autocomplete status
+python manage.py autocomplete status --verbose
 python manage.py autocomplete refresh
-```
-
-### `autocomplete uninstall`
-
-Removes the shell hook from your RC file, deletes the managed script files, and removes the managed install directory if empty. Never touches files outside the managed path.
-
-```bash
 python manage.py autocomplete uninstall
 ```
 
----
+`status --verbose` is the best first diagnostic when completion behaves unexpectedly. It reports the cache path, schema version, migration counts, warning count, shell hooks, installed script versions, and package version.
 
-## Auto-refresh
-
-The cache refreshes automatically in a background thread after each `manage.py` command, with a 60-second cooldown to avoid redundant rebuilds.
-
-To disable auto-refresh (manual `autocomplete refresh` only):
+`refresh` rebuilds `.django-completion-cache.json` manually. The cache also refreshes automatically after `manage.py` commands with a 60-second cooldown. To disable auto-refresh:
 
 ```python
 DJANGO_COMPLETION_AUTO_REFRESH = False
 ```
 
----
+## Compatibility
 
-## Safety and privacy
+| Area | Supported in v0.2.0 |
+|---|---|
+| Python | 3.10+ |
+| Django | 4.2+ |
+| Shells | bash, zsh |
+| OS | Linux and macOS expected |
+| Windows | not officially supported; WSL with bash/zsh may work |
+| Invocations | `manage.py`, `./manage.py`, `python manage.py`, `python3 manage.py`, `uv run python manage.py` |
+| Completion depth | commands, app labels, options, migrate app labels, migration names |
 
-- No telemetry. No network calls.
-- Tab completion reads only the local cache file — it does not import Django or touch the database.
-- The cache is local runtime state stored in the project root as `.django-completion-cache.json`.
-- Shell RC edits are marker-delimited and fully reversible with `autocomplete uninstall`.
-- The package has no middleware, models, or request-time behavior.
+## Safety and Privacy
+
+- No telemetry.
+- No network calls.
+- Tab completion reads only the local cache file.
+- Tab completion does not import Django.
+- Tab completion does not touch the database.
+- The cache is local runtime state in the project root.
+- The cache contains command names, app labels, option names/help, migration names, warnings, and timestamps.
+- Shell rc edits are marker-delimited and reversible.
+- `autocomplete uninstall` removes managed shell hooks and managed scripts.
+- The package has no middleware, models, migrations, or request-time behavior.
 
 For teams that prefer strict production settings:
 
@@ -137,33 +129,26 @@ if DEBUG:
     INSTALLED_APPS += ["django_completion"]
 ```
 
----
+`DEBUG` is not always the right environment switch; separate settings modules or a custom environment flag may fit your deployment process better.
 
-## Limitations (v1)
+## Limitations
 
-- bash and zsh only (fish planned for a later release)
-- requires adding `django_completion` to `INSTALLED_APPS`
-- no migration-name completion yet
+- bash and zsh only; fish is planned for a later release
 - no `django-admin` support
-- no native Windows/PowerShell support (WSL with bash/zsh may work)
-
----
+- no official native Windows or PowerShell support
+- no global options before command, such as `python manage.py --settings config.settings migrate`
+- no custom alias support, such as `dj migrate`
+- no database-aware applied/unapplied migration filtering
 
 ## Roadmap
 
-**v2** adds migration-aware completion — the most-requested feature:
+Near-term candidates include more wrapper support, better Docker-oriented examples, fish shell support, and additional command-specific completion rules.
 
-```bash
-python manage.py migrate <TAB>
-accounts  billing  blog
+Long term, the goal is to learn from real-world usage and explore whether parts of this approach could inform Django's own management-command completion story.
 
-python manage.py migrate accounts <TAB>
-0001_initial  0002_add_profile  zero
-```
+## Documentation
 
-v2 also brings an internal Python completion helper (replacing inline shell snippets), cache schema versioning, better `status` diagnostics, and `uv run python manage.py` support.
-
----
+Full documentation is at https://soldatov-ss.github.io/django_completion/.
 
 ## Development
 
@@ -171,34 +156,9 @@ v2 also brings an internal Python completion helper (replacing inline shell snip
 git clone git@github.com:soldatov-ss/django-completion.git
 cd django-completion
 uv sync
+uv run pytest -q
+uv run ruff check .
+uv run ty check
 ```
-
-Run tests:
-
-```bash
-just test
-```
-
-Run all quality checks (format, lint, type check, test):
-
-```bash
-just qa
-```
-
----
-
-## Documentation
-
-Full documentation is at https://soldatov-ss.github.io/django_completion/.
-
-To preview docs locally:
-
-```bash
-just docs-serve
-```
-
----
-
-## Author
 
 django-completion was created in 2026 by [Soldatov Serhii](https://github.com/soldatov-ss).
