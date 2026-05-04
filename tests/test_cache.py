@@ -8,13 +8,18 @@ from django_completion.cache import build_cache, is_stale, read_cache, write_cac
 @pytest.mark.django_db
 def test_build_cache_structure():
     data = build_cache()
+    assert data["schema_version"] == 2
     assert "commands" in data
     assert "app_labels" in data
     assert "command_help" in data
     assert "command_options" in data
     assert "command_option_descriptions" in data
+    assert "migrations" in data
+    assert "warnings" in data
     assert "generated_at" in data
     assert isinstance(data["commands"], list)
+    assert isinstance(data["migrations"], dict)
+    assert isinstance(data["warnings"], list)
     assert len(data["commands"]) > 0
 
 
@@ -53,6 +58,55 @@ def test_build_cache_command_descriptions():
     data = build_cache()
     assert isinstance(data["command_help"].get("migrate"), str)
     assert isinstance(data["command_option_descriptions"].get("migrate", {}).get("--fake"), str)
+
+
+@pytest.mark.django_db
+def test_build_cache_discovers_django_builtin_migrations():
+    data = build_cache()
+    assert "auth" in data["migrations"]
+    assert "contenttypes" in data["migrations"]
+    assert "sessions" in data["migrations"]
+    assert "0001_initial" in data["migrations"]["auth"]
+    assert all(not migration.endswith(".py") for migration in data["migrations"]["auth"])
+
+
+@pytest.mark.django_db
+def test_build_cache_respects_disabled_migration_module(settings):
+    settings.MIGRATION_MODULES = {"auth": None}
+
+    data = build_cache()
+
+    assert "auth" not in data["migrations"]
+    assert "contenttypes" in data["migrations"]
+
+
+@pytest.mark.django_db
+def test_build_cache_warns_for_uninspectable_migration_module(settings):
+    settings.MIGRATION_MODULES = {"auth": "nonexistent.module"}
+
+    data = build_cache()
+
+    assert "auth" not in data["migrations"]
+    assert any("auth" in warning and "nonexistent.module" in warning for warning in data["warnings"])
+
+
+@pytest.mark.django_db
+def test_build_cache_discovers_custom_migration_module_and_filters_files(settings, tmp_path, monkeypatch):
+    migrations_dir = tmp_path / "custom_auth_migrations"
+    migrations_dir.mkdir()
+    (migrations_dir / "__init__.py").write_text("")
+    (migrations_dir / "0002_second.py").write_text("")
+    (migrations_dir / "0001_initial.py").write_text("")
+    (migrations_dir / "_private.py").write_text("")
+    (migrations_dir / ".hidden.py").write_text("")
+    (migrations_dir / "README.md").write_text("")
+    (migrations_dir / "__pycache__").mkdir()
+    monkeypatch.syspath_prepend(str(tmp_path))
+    settings.MIGRATION_MODULES = {"auth": "custom_auth_migrations"}
+
+    data = build_cache()
+
+    assert data["migrations"]["auth"] == ["0001_initial", "0002_second"]
 
 
 def test_write_and_read_cache(tmp_path):
