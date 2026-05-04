@@ -281,3 +281,124 @@ def test_autocomplete_status_with_cache(tmp_path, settings):
     output = out.getvalue()
     assert "Commands:" in output
     assert "Apps:" in output
+
+
+@pytest.fixture
+def isolated_autocomplete_paths(tmp_path, monkeypatch):
+    from django_completion.management.commands import autocomplete
+
+    install_dir = tmp_path / "share" / "django-completion"
+    bashrc = tmp_path / ".bashrc"
+    zshrc = tmp_path / ".zshrc"
+    bashrc.write_text("")
+    zshrc.write_text("")
+
+    monkeypatch.setattr(autocomplete, "_INSTALL_DIR", install_dir)
+    monkeypatch.setattr(
+        autocomplete,
+        "_SHELL_RC",
+        {
+            "bash": bashrc,
+            "zsh": zshrc,
+        },
+    )
+    return autocomplete, install_dir, bashrc, zshrc
+
+
+@pytest.mark.django_db
+def test_autocomplete_install_writes_version_marker_and_status_current(tmp_path, settings, isolated_autocomplete_paths):
+    settings.BASE_DIR = str(tmp_path)
+    autocomplete, install_dir, _, _ = isolated_autocomplete_paths
+
+    from django.core.management import call_command
+
+    call_command("autocomplete", "install", "--shell", "bash", stdout=io.StringIO(), no_color=True)
+
+    script_path = install_dir / "completion.bash"
+    first_line = script_path.read_text().splitlines()[0]
+    assert first_line == f"# django-completion version: {autocomplete._package_version()}"
+
+    out = io.StringIO()
+    call_command("autocomplete", "status", stdout=out, no_color=True)
+    output = out.getvalue()
+    assert "Schema: v2 (current)" in output
+    assert "Apps with migrations:" in output
+    assert "Warnings:" in output
+    assert "bash script: current" in output
+
+
+@pytest.mark.django_db
+def test_autocomplete_status_reports_outdated_script(tmp_path, settings, isolated_autocomplete_paths):
+    settings.BASE_DIR = str(tmp_path)
+    _, install_dir, _, _ = isolated_autocomplete_paths
+
+    from django.core.management import call_command
+
+    call_command("autocomplete", "install", "--shell", "bash", stdout=io.StringIO(), no_color=True)
+    script_path = install_dir / "completion.bash"
+    lines = script_path.read_text().splitlines()
+    lines[0] = "# django-completion version: 0.0.1"
+    script_path.write_text("\n".join(lines))
+
+    out = io.StringIO()
+    call_command("autocomplete", "status", stdout=out, no_color=True)
+    assert "bash script: outdated (script v0.0.1, package v" in out.getvalue()
+
+
+@pytest.mark.django_db
+def test_autocomplete_status_reports_v1_cache_outdated(tmp_path, settings, isolated_autocomplete_paths):
+    settings.BASE_DIR = str(tmp_path)
+    cache_file = tmp_path / ".django-completion-cache.json"
+    cache_file.write_text(
+        json.dumps(
+            {
+                "commands": ["migrate"],
+                "app_labels": [{"label": "auth", "origin": "pip"}],
+                "generated_at": 9_999_999_999,
+            }
+        )
+    )
+
+    from django.core.management import call_command
+
+    out = io.StringIO()
+    call_command("autocomplete", "status", stdout=out, no_color=True)
+    output = out.getvalue()
+    assert "Schema: v1 (outdated)" in output
+    assert "Apps with migrations: 0" in output
+
+
+@pytest.mark.django_db
+def test_autocomplete_status_verbose_outputs_diagnostics(tmp_path, settings, isolated_autocomplete_paths):
+    settings.BASE_DIR = str(tmp_path)
+    _, install_dir, _, _ = isolated_autocomplete_paths
+    cache_file = tmp_path / ".django-completion-cache.json"
+    cache_file.write_text(
+        json.dumps(
+            {
+                "schema_version": 2,
+                "commands": ["migrate", "shell"],
+                "app_labels": [{"label": "auth", "origin": "pip"}],
+                "migrations": {"auth": ["0001_initial"]},
+                "warnings": ["Could not inspect migrations for app 'legacy'"],
+                "generated_at": 1_771_920_000,
+            }
+        )
+    )
+    install_dir.mkdir(parents=True)
+    (install_dir / "completion.bash").write_text("# django-completion version: 0.0.1\n")
+
+    from django.core.management import call_command
+
+    out = io.StringIO()
+    call_command("autocomplete", "status", "--verbose", stdout=out, no_color=True)
+    output = out.getvalue()
+    assert f"Cache path: {cache_file}" in output
+    assert "Generated: 2026-02-24 08:00:00 UTC" in output
+    assert "Schema version: 2" in output
+    assert "Apps with migrations: 1 (auth)" in output
+    assert "Warnings: 1" in output
+    assert "bash hook:" in output
+    assert "bash script:" in output
+    assert "(v0.0.1, outdated)" in output
+    assert "Package version:" in output
