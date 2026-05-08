@@ -72,7 +72,7 @@ Manual `autocomplete refresh` still works when auto-refresh is disabled.
 
 Location: `{project_root}/.django-completion-cache.json`
 
-v0.2.0 writes schema version 2:
+The cache schema (version 2):
 
 ```json
 {
@@ -116,7 +116,7 @@ Cache notes:
 
 ## Compatibility
 
-| Area | Supported in v0.2.0 |
+| Area | Supported |
 |---|---|
 | Python | 3.10+ |
 | Django | 4.2+ |

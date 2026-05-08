@@ -126,7 +126,7 @@ When disabled, `autocomplete refresh` still works normally.
 
 ## Known limits
 
-These are out of scope for v0.2.0:
+These are currently out of scope:
 
 - `django-admin`
 - fish shell

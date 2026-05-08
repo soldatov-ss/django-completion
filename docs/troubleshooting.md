@@ -112,7 +112,7 @@ If descriptions look wrong or completion is empty, run `python manage.py autocom
 
 ## I use `uv run python manage.py`
 
-v0.2.0 supports:
+Supported invocations include:
 
 ```bash
 uv run python manage.py <TAB>
@@ -139,7 +139,7 @@ No. Tab completion reads only the local cache file. Cache refresh inspects Djang
 
 ## Does this work with Docker?
 
-Docker can work, but v0.2.0 does not provide full Docker-specific integration.
+Docker can work, but django-completion does not provide full Docker-specific integration.
 
 The usual pattern is:
 
