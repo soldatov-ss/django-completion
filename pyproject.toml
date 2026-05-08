@@ -71,7 +71,7 @@ docs = [
 [project.urls]
 "Bug Tracker" = "https://github.com/soldatov-ss/django-completion/issues"
 Changelog = "https://github.com/soldatov-ss/django-completion/releases"
-Documentation = "https://soldatov-ss.github.io/django_completion/"
+Documentation = "https://soldatov-ss.github.io/django-completion/"
 Homepage = "https://github.com/soldatov-ss/django-completion"
 Repository = "https://github.com/soldatov-ss/django-completion"
 
