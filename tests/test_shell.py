@@ -103,10 +103,10 @@ def test_bash_completes_options(cache_dir):
 
 
 @pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
-def test_bash_shell_completes_app_labels_and_options(cache_dir):
+def test_bash_runserver_completes_options_only(cache_dir):
     completions = _bash_complete(cache_dir, ["manage.py", "runserver", ""], 2)
-    assert "myapp" in completions
-    assert "auth" in completions
+    assert "myapp" not in completions
+    assert "auth" not in completions
     assert "--noreload" in completions
 
 
