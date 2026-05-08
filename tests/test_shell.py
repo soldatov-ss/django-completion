@@ -403,3 +403,85 @@ def test_autocomplete_status_verbose_outputs_diagnostics(tmp_path, settings, iso
     assert "bash script:" in output
     assert "(v0.0.1, outdated)" in output
     assert "Package version:" in output
+
+
+# ── _human_age unit tests ─────────────────────────────────────────────────────
+
+
+from django_completion.management.commands.autocomplete import _human_age  # noqa: E402
+
+
+def test_human_age_seconds():
+    assert _human_age(0) == "0s"
+    assert _human_age(30) == "30s"
+    assert _human_age(59) == "59s"
+
+
+def test_human_age_minutes():
+    assert _human_age(60) == "1 minute"
+    assert _human_age(90) == "1 minute"
+    assert _human_age(120) == "2 minutes"
+    assert _human_age(3599) == "59 minutes"
+
+
+def test_human_age_hours():
+    assert _human_age(3600) == "1 hour"
+    assert _human_age(7200) == "2 hours"
+    assert _human_age(86399) == "23 hours"
+
+
+def test_human_age_days():
+    assert _human_age(86400) == "1 day"
+    assert _human_age(172800) == "2 days"
+    assert _human_age(203692) == "2 days"
+
+
+# ── _uninstall tests ──────────────────────────────────────────────────────────
+
+
+@pytest.mark.django_db
+def test_autocomplete_uninstall_prints_reload_hint(tmp_path, settings, isolated_autocomplete_paths):
+    settings.BASE_DIR = str(tmp_path)
+
+    from django.core.management import call_command
+
+    call_command("autocomplete", "install", "--shell", "bash", stdout=io.StringIO(), no_color=True)
+
+    out = io.StringIO()
+    call_command("autocomplete", "uninstall", stdout=out, no_color=True)
+    output = out.getvalue()
+
+    assert "source" in output
+    assert "new terminal" in output
+
+
+@pytest.mark.django_db
+def test_autocomplete_uninstall_prints_cache_note(tmp_path, settings, isolated_autocomplete_paths):
+    settings.BASE_DIR = str(tmp_path)
+
+    from django.core.management import call_command
+
+    call_command("autocomplete", "install", "--shell", "bash", stdout=io.StringIO(), no_color=True)
+
+    out = io.StringIO()
+    call_command("autocomplete", "uninstall", stdout=out, no_color=True)
+    output = out.getvalue()
+
+    assert ".django-completion-cache.json" in output
+    assert "left in place" in output
+
+
+@pytest.mark.django_db
+def test_autocomplete_uninstall_removes_rc_block_and_script(tmp_path, settings, isolated_autocomplete_paths):
+    settings.BASE_DIR = str(tmp_path)
+    _, install_dir, bashrc, _ = isolated_autocomplete_paths
+
+    from django.core.management import call_command
+
+    call_command("autocomplete", "install", "--shell", "bash", stdout=io.StringIO(), no_color=True)
+    assert "django-completion begin" in bashrc.read_text()
+
+    call_command("autocomplete", "uninstall", stdout=io.StringIO(), no_color=True)
+
+    assert "django-completion begin" not in bashrc.read_text()
+    assert not (install_dir / "completion.bash").exists()

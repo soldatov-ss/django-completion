@@ -61,7 +61,6 @@ _django_python_manage() {
     for (( i=2; i<CURRENT; i++ )); do
         if [[ "${words[$i]}" == *manage.py ]]; then
             manage_pos=$i
-            break
         fi
     done
 
