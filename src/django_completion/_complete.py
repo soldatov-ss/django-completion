@@ -57,13 +57,7 @@ def _migration_app_labels(cache: dict[str, Any]) -> list[tuple[str, str]]:
 
     migration_labels = {label for label in migrations if isinstance(label, str)}
 
-    origin_lookup: dict[str, str] = {}
-    for entry in cache.get("app_labels", []):
-        if isinstance(entry, dict):
-            label = entry.get("label")
-            if isinstance(label, str) and label:
-                origin = entry.get("origin")
-                origin_lookup[label] = origin if isinstance(origin, str) and origin else "pip"
+    origin_lookup = dict(_app_labels(cache))
 
     local = sorted(label for label in migration_labels if origin_lookup.get(label) == "local")
     non_local = sorted(label for label in migration_labels if origin_lookup.get(label) != "local")

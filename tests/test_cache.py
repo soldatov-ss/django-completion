@@ -1,5 +1,6 @@
 import time
 
+from django.core import management
 import pytest
 
 from django_completion.cache import build_cache, is_stale, read_cache, write_cache
@@ -114,6 +115,23 @@ def test_build_cache_discovers_custom_migration_module_and_filters_files(setting
     data = build_cache()
 
     assert data["migrations"]["auth"] == ["0001_initial", "0002_second"]
+
+
+@pytest.mark.django_db
+def test_build_cache_warns_for_uninspectable_command(monkeypatch):
+    original_load = management.load_command_class
+
+    def broken_load(app_name, cmd_name):
+        if cmd_name == "migrate":
+            raise RuntimeError("simulated import failure")
+        return original_load(app_name, cmd_name)
+
+    monkeypatch.setattr(management, "load_command_class", broken_load)
+    data = build_cache()
+
+    assert any("migrate" in w and "simulated import failure" in w for w in data["warnings"])
+    assert data["command_options"]["migrate"] == []
+    assert "migrate" in data["commands"]
 
 
 def test_write_and_read_cache(tmp_path):

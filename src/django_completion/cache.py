@@ -113,10 +113,11 @@ def build_cache() -> dict:
             command_option_descriptions[cmd_name] = {
                 opt: option_descriptions.get(opt, "") for opt in command_options[cmd_name]
             }
-        except Exception:
+        except Exception as exc:
             command_help[cmd_name] = ""
             command_options[cmd_name] = []
             command_option_descriptions[cmd_name] = {}
+            warnings.append(f"Could not inspect command '{cmd_name}': {exc}")
 
     return {
         "schema_version": 2,
