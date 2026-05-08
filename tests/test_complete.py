@@ -132,15 +132,8 @@ def test_migrate_third_position_dash_completes_options_only():
     ]
 
 
-def test_other_command_completes_all_apps_and_options():
-    assert complete(_cache(), ["manage.py", "shell", ""], 2) == [
-        "accounts",
-        "billing",
-        "auth",
-        "sessions",
-        "--interface",
-        "--command",
-    ]
+def test_unlisted_command_completes_options_only():
+    assert complete(_cache(), ["manage.py", "shell", ""], 2) == ["--interface", "--command"]
 
 
 def test_other_command_dash_completes_options_only():
@@ -153,8 +146,11 @@ def test_v1_cache_preserves_commands_options_and_migrate_app_fallback():
     cache.pop("migrations")
 
     assert complete(cache, ["manage.py", ""], 1) == ["migrate", "runserver", "shell"]
+    # Without a migrations dict, migrate falls back to all app labels.
     assert complete(cache, ["manage.py", "migrate", ""], 2) == ["accounts", "billing", "auth", "sessions"]
     assert complete(cache, ["manage.py", "migrate", "--"], 2) == ["--fake", "--fake-initial", "--database"]
+    # Non-whitelisted commands still return options only (no app labels).
+    assert complete(cache, ["manage.py", "shell", ""], 2) == ["--interface", "--command"]
 
 
 def test_malformed_migrations_falls_back_to_all_app_labels_for_migrate_apps():
@@ -341,3 +337,139 @@ def test_non_string_words_json_cli_prints_nothing(tmp_path):
 
     assert result.returncode == 0
     assert result.stdout == ""
+
+
+# ── 0.2.2-1: Command whitelist ────────────────────────────────────────────────
+
+
+def test_whitelist_runserver_completes_options_only():
+    result = complete(_cache(), ["manage.py", "runserver", ""], 2)
+    assert result == []  # runserver has no options in the fixture
+
+
+def test_whitelist_shell_completes_options_only():
+    result = complete(_cache(), ["manage.py", "shell", ""], 2)
+    assert "accounts" not in result
+    assert "--interface" in result
+
+
+def test_whitelist_custom_command_completes_options_only():
+    result = complete(_cache(), ["manage.py", "mycustomcommand", ""], 2)
+    assert result == []
+
+
+def test_whitelist_dumpdata_completes_app_labels_and_options():
+    cache = _cache()
+    cache["commands"].append("dumpdata")
+    result = complete(cache, ["manage.py", "dumpdata", ""], 2)
+    assert "accounts" in result
+    assert "auth" in result
+
+
+def test_whitelist_test_completes_app_labels_and_options():
+    cache = _cache()
+    cache["commands"].append("test")
+    result = complete(cache, ["manage.py", "test", ""], 2)
+    assert "accounts" in result
+    assert "auth" in result
+
+
+def test_whitelist_check_completes_app_labels_and_options():
+    cache = _cache()
+    cache["commands"].append("check")
+    result = complete(cache, ["manage.py", "check", ""], 2)
+    assert "accounts" in result
+    assert "auth" in result
+
+
+# ── 0.2.2-2: makemigrations ───────────────────────────────────────────────────
+
+
+def test_makemigrations_completes_local_apps_only():
+    result = complete(_cache(), ["manage.py", "makemigrations", ""], 2)
+    assert "accounts" in result
+    assert "billing" in result
+    assert "auth" not in result
+    assert "sessions" not in result
+
+
+def test_makemigrations_dash_completes_options_only():
+    result = complete(_cache(), ["manage.py", "makemigrations", "--"], 2)
+    assert "accounts" not in result
+
+
+def test_makemigrations_local_apps_sorted_alphabetically():
+    cache = _cache()
+    cache["app_labels"] = [
+        {"label": "zoo_app", "origin": "local"},
+        {"label": "accounts", "origin": "local"},
+        {"label": "auth", "origin": "pip"},
+    ]
+    result = complete(cache, ["manage.py", "makemigrations", ""], 2)
+    assert result == ["accounts", "zoo_app"]
+
+
+def test_makemigrations_no_pip_apps_even_with_migrations():
+    cache = _cache()
+    cache["app_labels"] = [
+        {"label": "accounts", "origin": "local"},
+        {"label": "authtoken", "origin": "pip"},
+    ]
+    cache["migrations"]["authtoken"] = ["0001_initial"]
+    result = complete(cache, ["manage.py", "makemigrations", ""], 2)
+    assert "accounts" in result
+    assert "authtoken" not in result
+
+
+# ── 0.2.2-3: showmigrations ───────────────────────────────────────────────────
+
+
+def test_showmigrations_completes_migration_apps_local_first():
+    result = complete(_cache(), ["manage.py", "showmigrations", ""], 2)
+    assert "accounts" in result
+    assert "auth" in result
+    assert result.index("accounts") < result.index("auth")
+
+
+def test_showmigrations_dash_completes_options_only():
+    result = complete(_cache(), ["manage.py", "showmigrations", "--"], 2)
+    assert "accounts" not in result
+
+
+def test_showmigrations_pos3_completes_options_only():
+    result = complete(_cache(), ["manage.py", "showmigrations", "accounts", ""], 3)
+    assert "accounts" not in result
+    assert "0001_initial" not in result
+
+
+# ── 0.2.2-4: sqlmigrate ───────────────────────────────────────────────────────
+
+
+def test_sqlmigrate_completes_migration_apps():
+    result = complete(_cache(), ["manage.py", "sqlmigrate", ""], 2)
+    assert "accounts" in result
+    assert "auth" in result
+
+
+def test_sqlmigrate_dash_at_pos2_completes_options_only():
+    result = complete(_cache(), ["manage.py", "sqlmigrate", "--"], 2)
+    assert "accounts" not in result
+
+
+def test_sqlmigrate_completes_migration_names_without_zero():
+    result = complete(_cache(), ["manage.py", "sqlmigrate", "accounts", ""], 3)
+    assert "0001_initial" in result
+    assert "0002_add_user" in result
+    assert "zero" not in result
+
+
+def test_sqlmigrate_dash_at_pos3_completes_options_only():
+    result = complete(_cache(), ["manage.py", "sqlmigrate", "accounts", "--"], 3)
+    assert "0001_initial" not in result
+    assert "zero" not in result
+
+
+def test_sqlmigrate_pos4_completes_options_only():
+    result = complete(_cache(), ["manage.py", "sqlmigrate", "accounts", "0001_initial", ""], 4)
+    assert "accounts" not in result
+    assert "0001_initial" not in result

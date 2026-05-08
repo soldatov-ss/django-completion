@@ -4,6 +4,20 @@ import json
 from pathlib import Path
 from typing import Any
 
+# Commands known to accept app labels as positional arguments.
+# Commands not in this set fall back to options-only completion.
+_APP_LABEL_COMMANDS = frozenset(
+    {
+        "check",
+        "dumpdata",
+        "makemigrations",
+        "migrate",
+        "showmigrations",
+        "sqlmigrate",
+        "test",
+    }
+)
+
 
 def _load_cache(path: str) -> dict[str, Any] | None:
     """Read a completion cache from disk, returning None when it is unavailable."""
@@ -71,16 +85,24 @@ def _options(cache: dict[str, Any], cmd: str | None) -> list[str]:
     return [opt for opt in opts if isinstance(opt, str) and opt]
 
 
-def _migration_names(cache: dict[str, Any], app_label: str | None) -> list[str]:
-    """Return cached migration names for an app plus the zero target."""
+def _local_app_labels(cache: dict[str, Any]) -> list[str]:
+    """Return app labels where origin is 'local', alphabetically sorted."""
+    return sorted(label for label, origin in _app_labels(cache) if origin == "local")
+
+
+def _migration_names(cache: dict[str, Any], app_label: str | None, *, include_zero: bool = True) -> list[str]:
+    """Return cached migration names for an app, optionally including the zero target."""
     migrations = cache.get("migrations")
     if not isinstance(app_label, str) or not isinstance(migrations, dict):
-        return ["zero"]
+        return ["zero"] if include_zero else []
 
     names = migrations.get(app_label, [])
     if not isinstance(names, list):
-        return ["zero"]
-    return [name for name in names if isinstance(name, str) and name] + ["zero"]
+        return ["zero"] if include_zero else []
+    result = [name for name in names if isinstance(name, str) and name]
+    if include_zero:
+        result.append("zero")
+    return result
 
 
 def _escape_zsh_description(description: str) -> str:
@@ -123,6 +145,54 @@ def _app_and_option_candidates(cache: dict[str, Any], cmd: str | None) -> list[t
     return candidates
 
 
+def _migration_app_label_candidates(cache: dict[str, Any], fmt: str) -> list[str]:
+    return _format_candidates([(label, f"[{origin}]") for label, origin in _migration_app_labels(cache)], fmt)
+
+
+def _migration_command_candidates(
+    cache: dict[str, Any],
+    cmd: str,
+    pos: int,
+    words: list[str],
+    manage_idx: int,
+    fmt: str,
+) -> list[str]:
+    """Handle migrate / showmigrations / sqlmigrate positional completion."""
+    if pos == 2:
+        return _migration_app_label_candidates(cache, fmt)
+    if pos == 3 and cmd in ("migrate", "sqlmigrate"):
+        app = words[manage_idx + 2] if manage_idx + 2 < len(words) else None
+        include_zero = cmd == "migrate"
+        return _format_candidates([(name, "") for name in _migration_names(cache, app, include_zero=include_zero)], fmt)
+    return _format_candidates(_option_candidates(cache, cmd), fmt)
+
+
+def _positional_candidates(
+    cache: dict[str, Any],
+    cmd: str | None,
+    pos: int,
+    words: list[str],
+    manage_idx: int,
+    fmt: str,
+) -> list[str]:
+    """Return candidates for a non-dash positional argument after the command is known."""
+    if cmd == "autocomplete" and pos == 2:
+        subcommands = [("install", ""), ("refresh", ""), ("status", ""), ("uninstall", "")]
+        return _format_candidates(subcommands, fmt)
+
+    if cmd == "makemigrations":
+        return _format_candidates([(label, "[local]") for label in _local_app_labels(cache)], fmt)
+
+    if cmd in ("migrate", "showmigrations", "sqlmigrate") and isinstance(cmd, str):
+        return _migration_command_candidates(cache, cmd, pos, words, manage_idx, fmt)
+
+    # Whitelist: commands known to accept app labels get app-label + option completion.
+    # Everything else (runserver, shell, custom commands, etc.) gets options only.
+    if cmd in _APP_LABEL_COMMANDS:
+        return _format_candidates(_app_and_option_candidates(cache, cmd), fmt)
+    return _format_candidates(_option_candidates(cache, cmd), fmt)
+
+
 def complete(cache: dict[str, Any], words: list[str], cword: int, fmt: str = "bash") -> list[str]:
     """Return completion candidates for a tokenized manage.py command line."""
     if cword < 0 or cword >= len(words):
@@ -149,22 +219,7 @@ def complete(cache: dict[str, Any], words: list[str], cword: int, fmt: str = "ba
     if cur.startswith("-"):
         return _format_candidates(_option_candidates(cache, cmd), fmt)
 
-    # autocomplete takes subcommands, not app labels.
-    if cmd == "autocomplete" and pos == 2:
-        subcommands = [("install", ""), ("refresh", ""), ("status", ""), ("uninstall", "")]
-        return _format_candidates(subcommands, fmt)
-
-    # migrate is the one v2 command with command-specific positional rules:
-    # first complete only apps that have migrations, then migration names.
-    if cmd == "migrate" and pos == 2:
-        return _format_candidates([(label, f"[{origin}]") for label, origin in _migration_app_labels(cache)], fmt)
-
-    if cmd == "migrate" and pos == 3:
-        app_label = words[manage_idx + 2] if manage_idx + 2 < len(words) else None
-        return _format_candidates([(name, "") for name in _migration_names(cache, app_label)], fmt)
-
-    # Other commands keep the v1 behavior: app labels plus command options.
-    return _format_candidates(_app_and_option_candidates(cache, cmd), fmt)
+    return _positional_candidates(cache, cmd, pos, words, manage_idx, fmt)
 
 
 def _main() -> int:
