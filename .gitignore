@@ -61,3 +61,5 @@ site/
 .claude/
 CLAUDE.md
 .agents/
+skills-lock.json
+.codex

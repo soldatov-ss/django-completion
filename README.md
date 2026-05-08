@@ -99,7 +99,7 @@ DJANGO_COMPLETION_AUTO_REFRESH = False
 
 ## Compatibility
 
-| Area | Supported in v0.2.0 |
+| Area | Supported |
 |---|---|
 | Python | 3.10+ |
 | Django | 4.2+ |
