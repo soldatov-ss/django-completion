@@ -8,6 +8,32 @@ python manage.py autocomplete status --verbose
 
 It shows the cache path, schema version, migration counts, warning count, shell hook paths, installed script versions, and package version.
 
+## "Unknown command: 'autocomplete'" error
+
+This error means Django could not find the `autocomplete` management command. It almost always means settings are not loaded in the terminal where you ran the command.
+
+The `autocomplete` command requires Django to be fully configured — settings loaded and `django_completion` discovered in `INSTALLED_APPS`. Without that, Django cannot see the command at all.
+
+Tab completion works independently because it reads the `.django-completion-cache.json` file directly and never imports Django.
+
+**Fix:** make sure your environment variables are set before running any `manage.py autocomplete` command. Typical setup:
+
+```bash
+export DJANGO_SETTINGS_MODULE=myproject.settings
+export DATABASE_URL=...   # and any other required env vars
+```
+
+Or if you use a `.env` file:
+
+```bash
+source .env
+python manage.py autocomplete status --verbose
+```
+
+If your project uses `python-dotenv` or similar, it only loads the `.env` file when Django starts, so you need to load it in your shell separately.
+
+Note that `autocomplete refresh` and `autocomplete status` require the same full Django setup. Once the cache is built you can press Tab freely — those keystrokes never touch Django.
+
 ## Tab completion shows nothing
 
 Check that the hook is installed and the script is current:

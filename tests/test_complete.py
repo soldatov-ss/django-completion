@@ -238,6 +238,54 @@ def test_zsh_migration_names_have_empty_descriptions():
     ]
 
 
+def test_autocomplete_completes_subcommands():
+    assert complete(_cache(), ["manage.py", "autocomplete", ""], 2) == [
+        "install",
+        "refresh",
+        "status",
+        "uninstall",
+    ]
+
+
+def test_autocomplete_dash_completes_options_not_subcommands():
+    assert complete(_cache(), ["manage.py", "autocomplete", "--"], 2) == []
+
+
+def test_migrate_local_apps_come_before_pip_apps():
+    result = complete(_cache(), ["manage.py", "migrate", ""], 2)
+    # accounts and billing are local; auth is pip — locals must come first
+    assert result.index("accounts") < result.index("auth")
+
+
+def test_migrate_local_first_ordering_is_alphabetical_within_groups():
+    cache = _cache()
+    cache["app_labels"] = [
+        {"label": "zoo_app", "origin": "local"},
+        {"label": "accounts", "origin": "local"},
+        {"label": "beta_pkg", "origin": "pip"},
+        {"label": "auth", "origin": "pip"},
+    ]
+    cache["migrations"] = {
+        "zoo_app": ["0001_initial"],
+        "accounts": ["0001_initial"],
+        "beta_pkg": ["0001_initial"],
+        "auth": ["0001_initial"],
+    }
+    result = complete(cache, ["manage.py", "migrate", ""], 2)
+    assert result == ["accounts", "zoo_app", "auth", "beta_pkg"]
+
+
+def test_migrate_unknown_origin_apps_sort_after_local():
+    cache = _cache()
+    cache["app_labels"] = [{"label": "accounts", "origin": "local"}]
+    cache["migrations"] = {
+        "accounts": ["0001_initial"],
+        "mystery": ["0001_initial"],
+    }
+    result = complete(cache, ["manage.py", "migrate", ""], 2)
+    assert result.index("accounts") < result.index("mystery")
+
+
 def test_missing_cache_file_cli_prints_nothing(tmp_path):
     result = _run_complete_cli(tmp_path / "missing.json", json.dumps(["manage.py", ""]))
 

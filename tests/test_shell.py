@@ -398,6 +398,7 @@ def test_autocomplete_status_verbose_outputs_diagnostics(tmp_path, settings, iso
     assert "Schema version: 2" in output
     assert "Apps with migrations: 1 (auth)" in output
     assert "Warnings: 1" in output
+    assert "- Could not inspect migrations for app 'legacy'" in output
     assert "bash hook:" in output
     assert "bash script:" in output
     assert "(v0.0.1, outdated)" in output
