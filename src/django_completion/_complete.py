@@ -10,7 +10,6 @@ _APP_LABEL_COMMANDS = frozenset(
     {
         "check",
         "dumpdata",
-        "makemigrations",
         "migrate",
         "showmigrations",
         "sqlmigrate",
