@@ -636,3 +636,266 @@ Note: unlike `migrate`, do **not** append `"zero"` to the migration names list. 
 - `uv run pytest tests/test_complete.py -q` passes.
 - `uv run ruff check src/django_completion/_complete.py` passes.
 - `uv run ty check` passes.
+
+---
+
+# 0.2.3 Issues
+
+Four independent improvements surfaced by architecture review. All are self-contained; no ordering dependency between them.
+
+---
+
+## Issue 0.2.3-1 — Delete `fuzzy.py`: unwired module with no production callers
+
+**Goal:** Remove `src/django_completion/fuzzy.py` and `tests/test_fuzzy.py`. The module was scaffolded early for a "did you mean?" feature that was never wired into a call site. Tab completion has no output path for suggestions — the shell presents candidates or nothing. Django itself already shows "Unknown command: 'migarte'. Did you mean migrate?" at its own command-discovery layer before any `django_completion` code runs, so the feature is doubly covered. Keeping the module creates a false impression that command suggestion is implemented by this package.
+
+**Files:**
+- `src/django_completion/fuzzy.py` — delete
+- `tests/test_fuzzy.py` — delete
+
+**What to implement:**
+
+Delete both files. Before deleting, run:
+```bash
+grep -r "from django_completion.fuzzy\|import fuzzy" src/
+```
+to confirm no production caller exists (expected: no output).
+
+**Acceptance criteria:**
+- `src/django_completion/fuzzy.py` does not exist.
+- `tests/test_fuzzy.py` does not exist.
+- `grep -r "from django_completion.fuzzy" src/` returns nothing.
+- `uv run pytest -q` passes.
+- `uv run ruff check .` passes.
+- `uv run ty check` passes.
+
+**Notes:**
+- If a "did you mean?" feature is added in a future release, re-introduce `fuzzy.py` at that point with a concrete call site (e.g., `_complete.py` or the `autocomplete` management command) and tests that exercise it through the caller, not in isolation.
+
+---
+
+## Issue 0.2.3-2 — Surface command introspection failures as warnings in `build_cache()`
+
+**Goal:** When `load_command_class` or `create_parser` raises during cache build, append a warning to the `warnings` list instead of silently discarding the error. Migration discovery already applies this contract — command introspection should match it. A user who gets empty option completions for a broken command can then see why via `autocomplete status --verbose`.
+
+**Files:**
+- `src/django_completion/cache.py` — update the command introspection loop in `build_cache()`
+- `tests/test_cache.py` — add a test for warning on uninspectable command class
+
+**What to implement:**
+
+In `build_cache()`, change the bare `except Exception` block:
+
+```python
+# before
+except Exception:
+    command_help[cmd_name] = ""
+    command_options[cmd_name] = []
+    command_option_descriptions[cmd_name] = {}
+```
+
+to:
+
+```python
+# after
+except Exception as exc:
+    command_help[cmd_name] = ""
+    command_options[cmd_name] = []
+    command_option_descriptions[cmd_name] = {}
+    warnings.append(f"Could not inspect command '{cmd_name}': {exc}")
+```
+
+Note: `warnings` here is the local list variable returned by `_discover_migrations()`, not the stdlib module (which is not imported in `cache.py`).
+
+Add a test that injects a broken command class and verifies the warning appears:
+
+```python
+@pytest.mark.django_db
+def test_build_cache_warns_for_uninspectable_command(monkeypatch):
+    original_load = management.load_command_class
+
+    def broken_load(app_name, cmd_name):
+        if cmd_name == "migrate":
+            raise RuntimeError("simulated import failure")
+        return original_load(app_name, cmd_name)
+
+    monkeypatch.setattr(management, "load_command_class", broken_load)
+    data = build_cache()
+
+    assert any("migrate" in w and "simulated import failure" in w for w in data["warnings"])
+    assert data["command_options"]["migrate"] == []
+    assert "migrate" in data["commands"]  # still discovered via get_commands()
+```
+
+**Acceptance criteria:**
+- A command whose class raises on load produces a non-empty `warnings` entry containing the command name and exception text.
+- The command still appears in `data["commands"]` (it was discovered by `get_commands()`), but `command_options[cmd_name]` is `[]`.
+- `autocomplete status --verbose` surfaces the warning (no code change needed — it already renders `data["warnings"]`).
+- `uv run pytest tests/test_cache.py -q` passes.
+- `uv run ruff check src/django_completion/cache.py` passes.
+- `uv run ty check` passes.
+
+---
+
+## Issue 0.2.3-3 — Make the auto-refresh hook testable; replace `warnings.warn` with logging
+
+**Goal:** The monkey-patch in `apps.py` — which fires after every manage.py command — is the core runtime mechanism of the package, yet it has zero unit test coverage. Extract the hook logic into a named module-level function so it can be tested directly. Replace `warnings.warn` (which in a background thread points to `threading.Thread.run`, not a useful frame, and goes to `stderr` where users never see it) with `logging.getLogger("django_completion")`.
+
+**Files:**
+- `src/django_completion/apps.py` — extract two module-level helpers; replace `warnings.warn`
+- `tests/test_apps.py` — new test file
+
+**What to implement:**
+
+Extract two module-level functions (currently closures inside `ready()`):
+
+```python
+import logging
+
+_logger = logging.getLogger("django_completion")
+
+
+def _refresh_safely() -> None:
+    try:
+        from django_completion.cache import maybe_refresh_cache
+        maybe_refresh_cache()
+    except Exception as exc:
+        _logger.warning("cache refresh failed: %s", exc)
+
+
+def _make_execute_hook(original_execute, refresh_fn):
+    """Return a patched BaseCommand.execute that calls refresh_fn in a background thread."""
+    def patched(cmd_self, *args, **kwargs):
+        try:
+            return original_execute(cmd_self, *args, **kwargs)
+        finally:
+            from django.conf import settings
+            if getattr(settings, "DJANGO_COMPLETION_AUTO_REFRESH", True):
+                thread = threading.Thread(target=refresh_fn, name="django-completion-refresh")
+                thread.start()
+    return patched
+```
+
+Update `ready()` to use them:
+
+```python
+def ready(self):
+    from django.core.management.base import BaseCommand
+
+    base_command = cast(Any, BaseCommand)
+    if getattr(base_command, "_django_completion_patched", False):
+        return
+
+    original_execute = BaseCommand.execute
+    base_command.execute = _make_execute_hook(original_execute, _refresh_safely)
+    base_command._django_completion_patched = True
+```
+
+Remove `import warnings` from the module (no longer needed).
+
+**Test coverage in `tests/test_apps.py`:**
+
+Use `threading.Event` to synchronize with the background thread; do not use `time.sleep`.
+
+```python
+import threading
+import pytest
+
+from django_completion.apps import _make_execute_hook, _refresh_safely
+
+
+def test_hook_calls_refresh_fn_after_execute(settings):
+    settings.DJANGO_COMPLETION_AUTO_REFRESH = True
+    called = threading.Event()
+    hook = _make_execute_hook(lambda self, *a, **kw: "result", lambda: called.set())
+    result = hook(None)
+    assert called.wait(timeout=1), "refresh_fn was not called"
+    assert result == "result"
+
+
+def test_hook_skips_refresh_when_disabled(settings):
+    settings.DJANGO_COMPLETION_AUTO_REFRESH = False
+    called = threading.Event()
+    hook = _make_execute_hook(lambda self, *a, **kw: None, lambda: called.set())
+    hook(None)
+    assert not called.wait(timeout=0.1), "refresh_fn should not have been called"
+
+
+def test_hook_fires_refresh_even_when_execute_raises(settings):
+    settings.DJANGO_COMPLETION_AUTO_REFRESH = True
+    called = threading.Event()
+
+    def raising_execute(self, *a, **kw):
+        raise RuntimeError("command failed")
+
+    hook = _make_execute_hook(raising_execute, lambda: called.set())
+    with pytest.raises(RuntimeError, match="command failed"):
+        hook(None)
+    assert called.wait(timeout=1), "refresh_fn should fire even after execute raises"
+
+
+def test_refresh_safely_does_not_propagate_exceptions(monkeypatch):
+    from django_completion import cache
+    monkeypatch.setattr(cache, "maybe_refresh_cache", lambda: (_ for _ in ()).throw(RuntimeError("oops")))
+    _refresh_safely()  # must not raise
+
+
+def test_refresh_safely_logs_exception(monkeypatch, caplog):
+    import logging
+    from django_completion import cache
+    monkeypatch.setattr(cache, "maybe_refresh_cache", lambda: (_ for _ in ()).throw(RuntimeError("oops")))
+    with caplog.at_level(logging.WARNING, logger="django_completion"):
+        _refresh_safely()
+    assert "oops" in caplog.text
+```
+
+**Acceptance criteria:**
+- `_make_execute_hook` and `_refresh_safely` exist at module level in `apps.py`.
+- `import warnings` is removed from `apps.py`; `logging.getLogger("django_completion")` is used instead.
+- `ready()` uses `_make_execute_hook` and `_refresh_safely`.
+- All five tests above pass.
+- `uv run pytest -q` passes (full suite).
+- `uv run ty check` passes.
+
+**Notes:**
+- `_refresh_safely` imports `maybe_refresh_cache` lazily (inside the function) to match the existing pattern and avoid a circular import at module load time.
+- The background thread is intentionally not joined — commands must not block on cache refresh. Tests use `threading.Event.wait(timeout=1)` instead.
+
+---
+
+## Issue 0.2.3-4 — Fix `_migration_app_labels` duplicating `_app_labels` parsing
+
+**Goal:** `_migration_app_labels` rebuilds an `origin_lookup` dict by re-parsing `cache["app_labels"]` inline — the same defensive parsing already done by `_app_labels(cache)`. Concentrate cache-entry access in `_app_labels`; let `_migration_app_labels` consume its output.
+
+**Files:**
+- `src/django_completion/_complete.py` — update `_migration_app_labels`
+
+**What to implement:**
+
+Replace the inline origin-lookup construction in `_migration_app_labels`:
+
+```python
+# before — re-parses cache["app_labels"] independently
+origin_lookup: dict[str, str] = {}
+for entry in cache.get("app_labels", []):
+    if isinstance(entry, dict):
+        label = entry.get("label")
+        if isinstance(label, str) and label:
+            origin = entry.get("origin")
+            origin_lookup[label] = origin if isinstance(origin, str) and origin else "pip"
+```
+
+with:
+
+```python
+# after — reuses the parsing already in _app_labels
+origin_lookup = {label: origin for label, origin in _app_labels(cache)}
+```
+
+`_app_labels` applies identical validation (isinstance checks, empty-string filtering, "pip" default) so the result is the same.
+
+**Acceptance criteria:**
+- All existing `tests/test_complete.py` tests pass unchanged — they already exercise the ordering and filtering behaviour.
+- No new tests required.
+- `uv run ruff check src/django_completion/_complete.py` passes.
+- `uv run ty check` passes.

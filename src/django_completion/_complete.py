@@ -157,13 +157,25 @@ def _migration_command_candidates(
     manage_idx: int,
     fmt: str,
 ) -> list[str]:
-    """Handle migrate / showmigrations / sqlmigrate positional completion."""
+    """Handle migrate / showmigrations / sqlmigrate positional completion.
+
+    pos 2          → apps that have migrations (local-first)
+    pos 3, migrate → migration names for the chosen app, including "zero"
+    pos 3, sqlmig  → migration names for the chosen app, excluding "zero"
+    pos 3, showmig → (not reached; showmigrations has no migration-name slot)
+    otherwise      → options only
+    """
     if pos == 2:
         return _migration_app_label_candidates(cache, fmt)
-    if pos == 3 and cmd in ("migrate", "sqlmigrate"):
+
+    if pos == 3 and cmd == "migrate":
         app = words[manage_idx + 2] if manage_idx + 2 < len(words) else None
-        include_zero = cmd == "migrate"
-        return _format_candidates([(name, "") for name in _migration_names(cache, app, include_zero=include_zero)], fmt)
+        return _format_candidates([(name, "") for name in _migration_names(cache, app)], fmt)
+
+    if pos == 3 and cmd == "sqlmigrate":
+        app = words[manage_idx + 2] if manage_idx + 2 < len(words) else None
+        return _format_candidates([(name, "") for name in _migration_names(cache, app, include_zero=False)], fmt)
+
     return _format_candidates(_option_candidates(cache, cmd), fmt)
 
 
