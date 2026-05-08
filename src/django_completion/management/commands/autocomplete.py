@@ -135,6 +135,21 @@ def _script_status(shell: Literal["bash", "zsh"], package_version: str) -> tuple
     return script_path, script_version, f"outdated (script v{script_version}, package v{package_version})"
 
 
+def _human_age(seconds: float) -> str:
+    """Convert a duration in seconds to a human-readable string."""
+    n = int(seconds)
+    if n < 60:
+        return f"{n}s"
+    if n < 3600:
+        minutes = n // 60
+        return f"{minutes} minute{'s' if minutes != 1 else ''}"
+    if n < 86400:
+        hours = n // 3600
+        return f"{hours} hour{'s' if hours != 1 else ''}"
+    days = n // 86400
+    return f"{days} day{'s' if days != 1 else ''}"
+
+
 def _schema_status(cache: dict[str, Any]) -> str:
     """Return a compact schema freshness label for the status summary.
 
@@ -172,6 +187,14 @@ def _warning_count(cache: dict[str, Any]) -> int:
     """Return the number of cache warnings, ignoring malformed values."""
     warnings = cache.get("warnings", [])
     return len(warnings) if isinstance(warnings, list) else 0
+
+
+def _warnings(cache: dict[str, Any]) -> list[str]:
+    """Return cache warning strings, ignoring malformed values."""
+    warnings = cache.get("warnings", [])
+    if not isinstance(warnings, list):
+        return []
+    return [warning for warning in warnings if isinstance(warning, str) and warning]
 
 
 class Command(BaseCommand):
@@ -241,9 +264,9 @@ class Command(BaseCommand):
         if cache is None:
             self.stdout.write("Cache: not found")
         else:
-            age = int(time.time() - cache.get("generated_at", 0))
+            age = time.time() - cache.get("generated_at", 0)
             stale = is_stale(cache, COOLDOWN_SECONDS)
-            self.stdout.write(f"Cache: {cache_path} (age {age}s, {'stale' if stale else 'fresh'})")
+            self.stdout.write(f"Cache: {cache_path} (age {_human_age(age)}, {'stale' if stale else 'fresh'})")
             self.stdout.write(f"Schema: {_schema_status(cache)}")
             self.stdout.write(f"Commands: {len(cache.get('commands', []))}")
             self.stdout.write(f"Apps: {len(cache.get('app_labels', []))}")
@@ -287,6 +310,8 @@ class Command(BaseCommand):
         self.stdout.write(f"Apps: {len(cache.get('app_labels', []))}")
         self.stdout.write(f"Apps with migrations: {_migration_apps_label(cache)}")
         self.stdout.write(f"Warnings: {_warning_count(cache)}")
+        for warning in _warnings(cache):
+            self.stdout.write(f"- {warning}")
 
     def _write_verbose_hook_status(self) -> None:
         """Print shell RC hook diagnostics for verbose status output."""
@@ -319,9 +344,11 @@ class Command(BaseCommand):
 
     def _uninstall(self, options: dict[str, Any]) -> None:
         """Remove the marker-delimited completion block from all shell RC files."""
+        removed_rc_paths = []
         for shell, rc_path in _SHELL_RC.items():
             if _remove_rc_block(rc_path):
                 self.stdout.write(self.style.SUCCESS(f"Removed {shell} completion from {rc_path}"))
+                removed_rc_paths.append(rc_path)
 
         for script_name in _SCRIPT_NAMES.values():
             script_path = _INSTALL_DIR / script_name
@@ -336,3 +363,10 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"Removed {_INSTALL_DIR}"))
         except (FileNotFoundError, OSError):
             pass
+
+        if removed_rc_paths:
+            self.stdout.write("\nTo complete removal from your current session, run:")
+            for rc_path in removed_rc_paths:
+                self.stdout.write(f"  source {rc_path}")
+            self.stdout.write("Or open a new terminal.")
+        self.stdout.write("\nNote: .django-completion-cache.json was left in place. Delete it manually if needed.")

@@ -14,13 +14,11 @@ if sys.version_info >= (3, 11):
 else:
     import tomli as tomllib
 
-# TODO: it doesn't work inside of container. It doesn't see the cache file?
-# TODO: to make it work for docker-compose -f local.yml run --rm django python manage.py migrate
-# TODO: python manage.py autocomplete status shows status age in seconds e.g.
-#  Cache: /home/user/Projects/django-completion/tests/testproject/.django-completion-cache.json (age 203692s, stale)
-# TODO: should we delete .django-completion-cache.json on autocomplete delete?
-# TODO: configure instruction on delete, not to forget to reopen terminal or run source
-# TODO: how does autompletion work in UV? there's a tab appears
+# TODO: how does autocompletion work in UV? there's a tab appears — needs investigation
+# v3/later: cache file not found inside Docker container (path mismatch between host and container)
+# v3/later: docker-compose -f local.yml run --rm django python manage.py migrate — host shell completes
+#           from mounted volume; needs docs explaining: run autocomplete refresh inside container,
+#           host shell reads cache from mounted project directory
 
 
 def _run(*cmd: str) -> None:

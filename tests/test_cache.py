@@ -91,6 +91,13 @@ def test_build_cache_warns_for_uninspectable_migration_module(settings):
 
 
 @pytest.mark.django_db
+def test_build_cache_does_not_warn_for_apps_without_default_migrations():
+    data = build_cache()
+
+    assert all("django_completion" not in warning for warning in data["warnings"])
+
+
+@pytest.mark.django_db
 def test_build_cache_discovers_custom_migration_module_and_filters_files(settings, tmp_path, monkeypatch):
     migrations_dir = tmp_path / "custom_auth_migrations"
     migrations_dir.mkdir()

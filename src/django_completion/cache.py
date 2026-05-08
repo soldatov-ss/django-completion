@@ -26,11 +26,11 @@ def _cache_path() -> Path:
     return Path.cwd() / CACHE_FILENAME
 
 
-def _migration_module_path(app_config, migration_modules: dict) -> str | None:
-    """Return the configured migrations module path for an app, or None when disabled."""
+def _migration_module_path(app_config, migration_modules: dict) -> tuple[str | None, bool]:
+    """Return the migrations module path and whether it was explicitly configured."""
     if app_config.label in migration_modules:
-        return migration_modules[app_config.label]
-    return f"{app_config.name}.migrations"
+        return migration_modules[app_config.label], True
+    return f"{app_config.name}.migrations", False
 
 
 def _migration_names_from_module(module_path: str) -> list[str]:
@@ -59,7 +59,7 @@ def _discover_migrations(app_configs, migration_modules: dict) -> tuple[dict[str
     warnings: list[str] = []
 
     for app_config in app_configs:
-        module_path = _migration_module_path(app_config, migration_modules)
+        module_path, is_configured = _migration_module_path(app_config, migration_modules)
         if module_path is None:
             continue
         if not isinstance(module_path, str):
@@ -70,6 +70,10 @@ def _discover_migrations(app_configs, migration_modules: dict) -> tuple[dict[str
             continue
         try:
             migration_names = _migration_names_from_module(module_path)
+        except ModuleNotFoundError as exc:
+            if is_configured:
+                warnings.append(f"Could not inspect migrations for app '{app_config.label}' at '{module_path}': {exc}")
+            continue
         except (ImportError, OSError, ValueError) as exc:
             warnings.append(f"Could not inspect migrations for app '{app_config.label}' at '{module_path}': {exc}")
             continue

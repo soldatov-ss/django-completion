@@ -36,17 +36,27 @@ def _app_labels(cache: dict[str, Any]) -> list[tuple[str, str]]:
 
 
 def _migration_app_labels(cache: dict[str, Any]) -> list[tuple[str, str]]:
-    """Return app labels that have migrations, preserving local-first cache order."""
+    """Return app labels that have migrations, local apps first then others alphabetically."""
     migrations = cache.get("migrations")
     if not isinstance(migrations, dict):
         return _app_labels(cache)
 
     migration_labels = {label for label in migrations if isinstance(label, str)}
 
-    labels = [(label, origin) for label, origin in _app_labels(cache) if label in migration_labels]
-    known_labels = {label for label, _origin in labels}
-    labels.extend((label, "pip") for label in sorted(migration_labels - known_labels))
-    return labels
+    origin_lookup: dict[str, str] = {}
+    for entry in cache.get("app_labels", []):
+        if isinstance(entry, dict):
+            label = entry.get("label")
+            if isinstance(label, str) and label:
+                origin = entry.get("origin")
+                origin_lookup[label] = origin if isinstance(origin, str) and origin else "pip"
+
+    local = sorted(label for label in migration_labels if origin_lookup.get(label) == "local")
+    non_local = sorted(label for label in migration_labels if origin_lookup.get(label) != "local")
+
+    result = [(label, "local") for label in local]
+    result.extend((label, origin_lookup.get(label, "pip")) for label in non_local)
+    return result
 
 
 def _options(cache: dict[str, Any], cmd: str | None) -> list[str]:
@@ -138,6 +148,11 @@ def complete(cache: dict[str, Any], words: list[str], cword: int, fmt: str = "ba
     # A dash prefix always means option completion for the active command.
     if cur.startswith("-"):
         return _format_candidates(_option_candidates(cache, cmd), fmt)
+
+    # autocomplete takes subcommands, not app labels.
+    if cmd == "autocomplete" and pos == 2:
+        subcommands = [("install", ""), ("refresh", ""), ("status", ""), ("uninstall", "")]
+        return _format_candidates(subcommands, fmt)
 
     # migrate is the one v2 command with command-specific positional rules:
     # first complete only apps that have migrations, then migration names.
