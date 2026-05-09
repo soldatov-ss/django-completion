@@ -924,13 +924,15 @@ Four fixes and UX improvements surfaced during real-world testing. All are indep
 Update `_detect_shell()`:
 ```python
 def _detect_shell() -> Literal["zsh", "bash"]:
-    if os.environ.get("ZSH_VERSION"):
-        return "zsh"
     if os.environ.get("BASH_VERSION"):
         return "bash"
+    if os.environ.get("ZSH_VERSION"):
+        return "zsh"
     shell = os.environ.get("SHELL", "")
     return "zsh" if "zsh" in shell else "bash"
 ```
+
+**Note:** The original implementation above had the check order reversed (`ZSH_VERSION` before `BASH_VERSION`), which caused a regression fixed in 0.2.6. See Issue 0.2.6-1.
 
 Update `_install()`: when the hook is already present, still print a source reminder after rewriting the script:
 ```
@@ -1041,4 +1043,65 @@ _django_complete_with_helper() {
 - Root cause is documented in the issue or PR description.
 - Either: `autocomplete states` shows "did you mean status?", or the limitation is added to `docs/troubleshooting.md`.
 - `uv run pytest tests/ -q` passes.
+- `uv run ty check` passes.
+
+---
+
+# 0.2.6 Issues
+
+One regression fix surfaced during real-world testing of 0.2.5.
+
+---
+
+## Issue 0.2.6-1 — Fix shell detection priority: `$BASH_VERSION` before `$ZSH_VERSION`
+
+**Goal:** `autocomplete install` correctly detects bash when bash is spawned inside a running zsh session.
+
+**Root cause:** 0.2.5 introduced `$ZSH_VERSION` / `$BASH_VERSION` detection to replace the unreliable `$SHELL` fallback. However, the check order was wrong: `$ZSH_VERSION` was checked first. When bash is spawned inside zsh, it inherits `$ZSH_VERSION` from the parent process but also sets its own `$BASH_VERSION`. With the old order, the inherited `$ZSH_VERSION` won, causing `autocomplete install` to target `.zshrc` from a bash session.
+
+Observed symptom:
+
+```
+$ echo $0
+/bin/bash
+$ python manage.py autocomplete install
+Completion already installed in /home/user/.zshrc   # wrong shell
+```
+
+**Files:**
+- `src/django_completion/management/commands/autocomplete.py` — `_detect_shell`
+- `tests/test_autocomplete.py` — new regression test
+
+**What to implement:**
+
+Swap the check order in `_detect_shell()` so `$BASH_VERSION` takes precedence:
+
+```python
+def _detect_shell() -> Literal["zsh", "bash"]:
+    if os.environ.get("BASH_VERSION"):   # checked first — cannot be stale
+        return "bash"
+    if os.environ.get("ZSH_VERSION"):
+        return "zsh"
+    shell = os.environ.get("SHELL", "")
+    return "zsh" if "zsh" in shell else "bash"
+```
+
+Rationale: `$BASH_VERSION` is always set by the currently running bash process. It cannot be a stale inherited value from a non-bash parent, because zsh never sets `$BASH_VERSION`. The reverse is not true — `$ZSH_VERSION` can be inherited by a bash child from a parent zsh.
+
+**Regression test:**
+
+```python
+def test_detect_shell_bash_wins_when_both_set(monkeypatch):
+    """bash spawned inside zsh inherits $ZSH_VERSION — $BASH_VERSION must win."""
+    monkeypatch.setenv("ZSH_VERSION", "5.9.0")   # inherited from parent zsh
+    monkeypatch.setenv("BASH_VERSION", "5.2.21")  # set by the running bash
+    monkeypatch.setenv("SHELL", "/usr/bin/zsh")
+    assert _detect_shell() == "bash"
+```
+
+**Acceptance criteria:**
+- `_detect_shell()` returns `"bash"` when both `$ZSH_VERSION` and `$BASH_VERSION` are set.
+- `_detect_shell()` returns `"zsh"` when only `$ZSH_VERSION` is set.
+- `_detect_shell()` returns `"bash"` when only `$BASH_VERSION` is set.
+- `uv run pytest tests/test_autocomplete.py -q` passes.
 - `uv run ty check` passes.
