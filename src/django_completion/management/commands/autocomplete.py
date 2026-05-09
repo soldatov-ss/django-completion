@@ -1,8 +1,10 @@
 from argparse import ArgumentParser
 from datetime import datetime, timezone
+from difflib import get_close_matches
 from importlib.metadata import PackageNotFoundError, version
 import os
 from pathlib import Path
+import re
 from typing import Any, Literal
 
 from django.core.management.base import BaseCommand
@@ -30,7 +32,11 @@ _CURRENT_SCHEMA_VERSION = 2
 
 
 def _detect_shell() -> Literal["zsh", "bash"]:
-    """Infer the current shell from $SHELL, defaulting to bash."""
+    """Infer the running shell from shell-set env vars, falling back to $SHELL."""
+    if os.environ.get("ZSH_VERSION"):
+        return "zsh"
+    if os.environ.get("BASH_VERSION"):
+        return "bash"
     shell = os.environ.get("SHELL", "")
     return "zsh" if "zsh" in shell else "bash"
 
@@ -213,6 +219,20 @@ class Command(BaseCommand):
         sub.add_parser("refresh", help="Force cache rebuild")
         sub.add_parser("uninstall", help="Remove shell completion")
 
+        _subcommands = ("install", "status", "refresh", "uninstall")
+        _original_error = parser.error
+
+        def _error_with_suggestion(message: str) -> None:
+            """Append a 'Did you mean X?' hint when the subcommand is a near-miss."""
+            m = re.search(r"invalid choice: '([^']*)'", message)
+            if m:
+                matches = get_close_matches(m.group(1), _subcommands)
+                if matches:
+                    message = f"{message}. Did you mean '{matches[0]}'?"
+            _original_error(message)
+
+        parser.error = _error_with_suggestion  # type: ignore[method-assign]  # ty: ignore[invalid-assignment]
+
     def handle(self, *args: Any, **options: Any) -> None:
         dispatch = {
             "install": self._install,
@@ -233,6 +253,8 @@ class Command(BaseCommand):
         rc_path = _SHELL_RC[shell]
         if _is_installed(rc_path):
             self.stdout.write(f"Completion already installed in {rc_path}")
+            self.stdout.write("Script updated. To apply changes in your current session, run:")
+            self.stdout.write(f"  source {rc_path}")
         else:
             with rc_path.open("a") as f:
                 f.write(f"\n{_source_block(script_path)}")
