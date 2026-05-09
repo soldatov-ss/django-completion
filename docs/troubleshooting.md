@@ -34,6 +34,17 @@ If your project uses `python-dotenv` or similar, it only loads the `.env` file w
 
 Note that `autocomplete refresh` and `autocomplete status` require the same full Django setup. Once the cache is built you can press Tab freely — those keystrokes never touch Django.
 
+## What is the difference between a hook and a script?
+
+`autocomplete status` reports two separate things for each shell:
+
+- **hook** — a marker-delimited `source` block in your RC file (`~/.bashrc` or `~/.zshrc`). It tells the shell where to find the completion script at startup.
+- **script** — the actual completion file at `~/.local/share/django-completion/completion.bash` (or `.zsh`). It contains the tab-completion functions and registers them with the shell.
+
+Both must be present for completion to work. `autocomplete install` writes both. If one is missing without the other, you can re-run `autocomplete install` to restore the pair.
+
+The script version is also tracked: after a package upgrade the script may be outdated while the hook remains valid. Running `autocomplete install` again overwrites the script with the current version — the hook does not need to change.
+
 ## Tab completion shows nothing
 
 Check that the hook is installed and the script is current:
