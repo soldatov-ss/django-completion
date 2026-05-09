@@ -107,3 +107,16 @@ def test_install_shows_source_reminder_when_already_installed(tmp_path, monkeypa
     output2 = out2.getvalue()
     assert "source" in output2
     assert "Script updated" in output2
+
+
+def test_detect_shell_bash_wins_when_both_set(monkeypatch):
+    """bash spawned inside zsh inherits $ZSH_VERSION — $BASH_VERSION must win."""
+    monkeypatch.setenv("ZSH_VERSION", "5.9.0")  # inherited from parent zsh
+    monkeypatch.setenv("BASH_VERSION", "5.2.21")  # set by the running bash
+    monkeypatch.setenv("SHELL", "/usr/bin/zsh")  # login shell (also misleading)
+    from importlib import reload
+
+    import django_completion.management.commands.autocomplete as mod
+
+    reload(mod)
+    assert mod._detect_shell() == "bash"

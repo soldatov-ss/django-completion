@@ -32,11 +32,16 @@ _CURRENT_SCHEMA_VERSION = 2
 
 
 def _detect_shell() -> Literal["zsh", "bash"]:
-    """Infer the running shell from shell-set env vars, falling back to $SHELL."""
-    if os.environ.get("ZSH_VERSION"):
-        return "zsh"
+    """Infer the running shell from shell-set env vars, falling back to $SHELL.
+
+    $BASH_VERSION is checked before $ZSH_VERSION because bash always sets it
+    in the current process, whereas $ZSH_VERSION can be inherited by a bash
+    child spawned inside a zsh session.
+    """
     if os.environ.get("BASH_VERSION"):
         return "bash"
+    if os.environ.get("ZSH_VERSION"):
+        return "zsh"
     shell = os.environ.get("SHELL", "")
     return "zsh" if "zsh" in shell else "bash"
 
