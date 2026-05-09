@@ -14,11 +14,15 @@ if sys.version_info >= (3, 11):
 else:
     import tomli as tomllib
 
-# TODO: how does autocompletion work in UV? there's a tab appears — needs investigation
+# TODO (skip me): how does autocompletion work in UV? there's a tab appears — needs investigation
 # v3/later: cache file not found inside Docker container (path mismatch between host and container)
 # v3/later: docker-compose -f local.yml run --rm django python manage.py migrate — host shell completes
 #           from mounted volume; needs docs explaining: run autocomplete refresh inside container,
 #           host shell reads cache from mounted project directory
+
+# TODO (skip me): test autocomplete status --verbose command and try to simulate warnings
+# TODO (skip me): test cache refresh with fallen
+# TODO (skip me): test more warnings in the other projects
 
 
 def _run(*cmd: str) -> None:

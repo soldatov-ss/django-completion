@@ -899,3 +899,146 @@ origin_lookup = {label: origin for label, origin in _app_labels(cache)}
 - No new tests required.
 - `uv run ruff check src/django_completion/_complete.py` passes.
 - `uv run ty check` passes.
+
+---
+
+# 0.2.5 Issues
+
+Four fixes and UX improvements surfaced during real-world testing. All are independent.
+
+---
+
+## Issue 0.2.5-1 — Fix shell detection + show source reminder after script update
+
+**Goal:** `autocomplete install` correctly detects zsh when `$SHELL` doesn't reflect the running shell, and always reminds the user to source their rc file when the script was (re)written.
+
+**Root cause 1:** `_detect_shell()` reads `$SHELL`, which reflects the user's login shell, not the currently running shell. A user whose login shell is bash but who runs in zsh gets bash detection. `$ZSH_VERSION` and `$BASH_VERSION` are set by the shell itself and are reliable.
+
+**Root cause 2:** When the hook is already in the rc file, `_install()` prints `"Completion already installed in ~/.zshrc"` but does not remind the user to source. The script file is always rewritten — if it changed, the user needs to source to pick up the update.
+
+**Files:**
+- `src/django_completion/management/commands/autocomplete.py` — `_detect_shell`, `_install`
+
+**What to implement:**
+
+Update `_detect_shell()`:
+```python
+def _detect_shell() -> Literal["zsh", "bash"]:
+    if os.environ.get("ZSH_VERSION"):
+        return "zsh"
+    if os.environ.get("BASH_VERSION"):
+        return "bash"
+    shell = os.environ.get("SHELL", "")
+    return "zsh" if "zsh" in shell else "bash"
+```
+
+Update `_install()`: when the hook is already present, still print a source reminder after rewriting the script:
+```
+Script updated. To apply changes in your current session, run:
+  source ~/.zshrc
+```
+
+**Acceptance criteria:**
+- With `ZSH_VERSION` set in environment, `_detect_shell()` returns `"zsh"` regardless of `$SHELL`.
+- With `BASH_VERSION` set and `ZSH_VERSION` absent, returns `"bash"`.
+- `autocomplete install` run a second time (hook already present) prints a source reminder.
+- `uv run pytest tests/ -q` passes.
+- `uv run ty check` passes.
+
+---
+
+## Issue 0.2.5-2 — `autocomplete` subcommand completion + status color + subparser descriptions
+
+**Goal:** Three small UX improvements bundled together: (1) shell completion offers `--verbose` for `autocomplete status` and `--shell bash/zsh` for `autocomplete install`; (2) `installed` / `not installed` labels in status output are colorized; (3) each subcommand's own `--help` shows a description line.
+
+**Files:**
+- `src/django_completion/_complete.py` — extend `autocomplete` special case
+- `src/django_completion/management/commands/autocomplete.py` — `_status`, `_status_verbose`, `add_arguments`
+
+**What to implement:**
+
+In `_complete.py`, extend the `autocomplete` pos-2 special case to also handle pos 3:
+- `autocomplete status <TAB>` (pos 3, cur starts with `-`) → `["--verbose"]`
+- `autocomplete install --<TAB>` (pos 3, cur starts with `-`) → `["--shell"]`
+- `autocomplete install --shell <TAB>` (pos 4, not a dash) → `["bash", "zsh"]`
+
+In `autocomplete.py`:
+- Wrap `"installed"` with `self.style.SUCCESS` and `"not installed"` with `self.style.WARNING` in both `_status()` and `_write_verbose_hook_status()` / `_write_verbose_script_status()`.
+- Add `description=` to each `add_parser()` call so the subcommand's own `--help` shows a summary line.
+
+**Acceptance criteria:**
+- `["manage.py", "autocomplete", "status", "--"]`, cword=3 → `["--verbose"]`.
+- `["manage.py", "autocomplete", "install", "--"]`, cword=3 → `["--shell"]`.
+- `["manage.py", "autocomplete", "install", "--shell", ""]`, cword=4 → `["bash", "zsh"]`.
+- `autocomplete status` output shows `installed` in green and `not installed` in yellow.
+- `python manage.py autocomplete status --help` shows a description line above the options.
+- `uv run pytest tests/test_complete.py -q` passes.
+- `uv run ruff check src/django_completion/_complete.py` passes.
+- `uv run ty check` passes.
+
+---
+
+## Issue 0.2.5-3 — Suppress bash file-completion fallback when in manage.py context
+
+**Goal:** `python manage.py makemigrations <TAB>` (and any other command where the helper returns no candidates) shows nothing instead of falling back to filename completion and dumping every file in the project directory.
+
+**Root cause:** The bash template registers `python` with `complete -o default`. When `COMPREPLY` is empty, bash falls back to filename completion. This is intentional for the plain `python <file>` case but harmful once a `manage.py` token is present in the words.
+
+**Files:**
+- `src/django_completion/scripts/bash_completion.sh.tmpl`
+
+**What to implement:**
+
+In `_django_complete_with_helper`, after locating the cache file, use `compopt +o default` to disable the filename fallback when a manage.py token is present in the current words:
+
+```bash
+_django_complete_with_helper() {
+    local cur="${COMP_WORDS[COMP_CWORD]}"
+    local cache_file
+    cache_file="$(_django_manage_find_cache)"
+    [[ -z "$cache_file" ]] && return 0
+
+    # Check whether a manage.py token appears before the word being completed.
+    # If so, suppress filename fallback — we own this completion context.
+    local word
+    for word in "${COMP_WORDS[@]::$COMP_CWORD}"; do
+        if [[ "$word" == *manage.py ]]; then
+            compopt +o default 2>/dev/null
+            break
+        fi
+    done
+
+    local words_json
+    ...
+}
+```
+
+`compopt +o default` is a no-op on bash < 4 (where the builtin doesn't exist) — the `2>/dev/null` suppresses the error silently.
+
+**Acceptance criteria:**
+- `python manage.py makemigrations <TAB>` with no local apps in cache → empty completion, no filename listing.
+- `python manage.py <unknown_command> <TAB>` → empty completion, no filename listing.
+- `python <file> <TAB>` (no manage.py token) → filename completion still works (unaffected).
+- `uv run pytest tests/test_shell.py -q` passes.
+
+---
+
+## Issue 0.2.5-4 — Diagnose: "did you mean?" missing for wrong `autocomplete` subcommands
+
+**Goal:** Understand why `python manage.py autocomplete states` does not show a "did you mean?" suggestion, despite Django having built-in command suggestion. Reproduce the behaviour, identify root cause, and either fix it or document the limitation.
+
+**Context:** Django's `execute_from_command_line` shows "did you mean?" for unknown top-level commands (e.g. `migarte` → "did you mean migrate?"). However, for subcommands of a management command (e.g. `autocomplete states`), the error is delegated to argparse, which shows valid choices but not a fuzzy suggestion. The old `fuzzy.py` module was deleted in 0.2.3-1 because it had no call site.
+
+**Files:**
+- Investigation only at first; fix location TBD after diagnosis.
+
+**What to investigate:**
+1. Confirm that `python manage.py autocomplete states` shows `error: argument subcommand: invalid choice: 'states' (choose from install, status, refresh, uninstall)` with no "did you mean?".
+2. Check whether Django's suggestion mechanism could intercept subparser errors.
+3. Decide: add a custom argparse error handler inside `Command.add_arguments` / `Command.handle`, or document that subcommand typos are out of scope.
+
+**Acceptance criteria (after diagnosis):**
+- Root cause is documented in the issue or PR description.
+- Either: `autocomplete states` shows "did you mean status?", or the limitation is added to `docs/troubleshooting.md`.
+- `uv run pytest tests/ -q` passes.
+- `uv run ty check` passes.
