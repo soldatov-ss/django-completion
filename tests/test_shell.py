@@ -485,3 +485,11 @@ def test_autocomplete_uninstall_removes_rc_block_and_script(tmp_path, settings, 
 
     assert "django-completion begin" not in bashrc.read_text()
     assert not (install_dir / "completion.bash").exists()
+
+
+# --- 0.2.5-3: suppress file-completion fallback ---
+
+
+def test_bash_template_suppresses_file_fallback():
+    text = BASH_SCRIPT.read_text()
+    assert "compopt +o default" in text

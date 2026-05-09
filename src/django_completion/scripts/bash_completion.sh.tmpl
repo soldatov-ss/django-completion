@@ -21,6 +21,16 @@ _django_complete_with_helper() {
     cache_file="$(_django_manage_find_cache)"
     [[ -z "$cache_file" ]] && return 0
 
+    # Suppress filename fallback (-o default) when a manage.py token is present.
+    # Without this, an empty COMPREPLY causes bash to list every file in $PWD.
+    local word
+    for word in "${COMP_WORDS[@]:0:$COMP_CWORD}"; do
+        if [[ "$word" == *manage.py ]]; then
+            compopt +o default 2>/dev/null
+            break
+        fi
+    done
+
     local words_json
     words_json=$(printf '%s\n' "${COMP_WORDS[@]}" | python3 -c '
 import json, sys
