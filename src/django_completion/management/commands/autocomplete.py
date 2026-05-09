@@ -210,14 +210,30 @@ class Command(BaseCommand):
         sub = parser.add_subparsers(dest="subcommand", metavar="subcommand")
         sub.required = True
 
-        install = sub.add_parser("install", help="Install shell completion")
+        install = sub.add_parser(
+            "install",
+            help="Install shell completion",
+            description="Install the shell completion script and add a source block to your shell RC file.",
+        )
         install.add_argument("--shell", choices=["bash", "zsh"], help="Target shell (default: auto-detect)")
 
-        status = sub.add_parser("status", help="Show completion status")
+        status = sub.add_parser(
+            "status",
+            help="Show completion status",
+            description="Show cache freshness, schema version, migration counts, and shell hook status.",
+        )
         status.add_argument("--verbose", action="store_true", help="Show full diagnostic details")
 
-        sub.add_parser("refresh", help="Force cache rebuild")
-        sub.add_parser("uninstall", help="Remove shell completion")
+        sub.add_parser(
+            "refresh",
+            help="Force cache rebuild",
+            description="Force a full cache rebuild, ignoring the cooldown period.",
+        )
+        sub.add_parser(
+            "uninstall",
+            help="Remove shell completion",
+            description="Remove the shell hook from your RC file and delete the managed script files.",
+        )
 
         _subcommands = ("install", "status", "refresh", "uninstall")
         _original_error = parser.error
@@ -297,12 +313,18 @@ class Command(BaseCommand):
 
         for shell, rc_path in _SHELL_RC.items():
             installed = _is_installed(rc_path)
-            status = "installed" if installed else "not installed"
-            self.stdout.write(f"{shell} hook: {status}")
+            status_label = self.style.SUCCESS("installed") if installed else self.style.WARNING("not installed")
+            self.stdout.write(f"{shell} hook: {status_label}")
 
         for shell in _SUPPORTED_SHELLS:
             _, _, status = _script_status(shell, package_version)
-            self.stdout.write(f"{shell} script: {status}")
+            if status == "current":
+                status_label = self.style.SUCCESS(status)
+            elif status == "not installed":
+                status_label = self.style.WARNING(status)
+            else:
+                status_label = self.style.WARNING(status)
+            self.stdout.write(f"{shell} script: {status_label}")
 
     def _status_verbose(self, cache_path: Path, cache: dict[str, Any] | None, package_version: str) -> None:
         """Print full cache, hook, and script diagnostics."""
@@ -338,20 +360,26 @@ class Command(BaseCommand):
     def _write_verbose_hook_status(self) -> None:
         """Print shell RC hook diagnostics for verbose status output."""
         for shell, rc_path in _SHELL_RC.items():
-            status = "installed" if _is_installed(rc_path) else "not installed"
-            self.stdout.write(f"{shell} hook: {rc_path} ({status})")
+            if _is_installed(rc_path):
+                status_label = self.style.SUCCESS("installed")
+            else:
+                status_label = self.style.WARNING("not installed")
+            self.stdout.write(f"{shell} hook: {rc_path} ({status_label})")
 
     def _write_verbose_script_status(self, package_version: str) -> None:
         """Print installed script diagnostics for verbose status output."""
         for shell in _SUPPORTED_SHELLS:
             script_path, script_version, status = _script_status(shell, package_version)
             if status == "not installed":
-                self.stdout.write(f"{shell} script: not installed")
+                self.stdout.write(f"{shell} script: {self.style.WARNING('not installed')}")
                 continue
             # The summary includes the package version for mismatches; verbose
             # output keeps just the script's version and currency at its path.
             version_label = f"v{script_version}" if script_version is not None else "unversioned"
-            current_label = "current" if status == "current" else "outdated"
+            if status == "current":
+                current_label = self.style.SUCCESS("current")
+            else:
+                current_label = self.style.WARNING("outdated")
             self.stdout.write(f"{shell} script: {script_path} ({version_label}, {current_label})")
 
     def _refresh(self, options: dict[str, Any]) -> None:

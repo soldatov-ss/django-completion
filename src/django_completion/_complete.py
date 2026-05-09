@@ -172,6 +172,16 @@ def _migration_command_candidates(
     return _format_candidates(_option_candidates(cache, cmd), fmt)
 
 
+def _autocomplete_option_candidates(words: list[str], manage_idx: int, pos: int) -> list[tuple[str, str]]:
+    """Return option candidates for autocomplete subcommands (not captured in cache)."""
+    subcmd = words[manage_idx + 2] if manage_idx + 2 < len(words) else None
+    if pos == 3 and subcmd == "status":
+        return [("--verbose", "Show full diagnostic details")]
+    if pos == 3 and subcmd == "install":
+        return [("--shell", "Target shell (bash or zsh)")]
+    return []
+
+
 def _positional_candidates(
     cache: dict[str, Any],
     cmd: str | None,
@@ -181,9 +191,16 @@ def _positional_candidates(
     fmt: str,
 ) -> list[str]:
     """Return candidates for a non-dash positional argument after the command is known."""
-    if cmd == "autocomplete" and pos == 2:
-        subcommands = [("install", ""), ("refresh", ""), ("status", ""), ("uninstall", "")]
-        return _format_candidates(subcommands, fmt)
+    if cmd == "autocomplete":
+        if pos == 2:
+            subcommands = [("install", ""), ("refresh", ""), ("status", ""), ("uninstall", "")]
+            return _format_candidates(subcommands, fmt)
+        # autocomplete install --shell <TAB> at pos 4
+        subcmd = words[manage_idx + 2] if manage_idx + 2 < len(words) else None
+        prev_idx = manage_idx + pos - 1
+        if pos == 4 and subcmd == "install" and prev_idx < len(words) and words[prev_idx] == "--shell":
+            return _format_candidates([("bash", ""), ("zsh", "")], fmt)
+        return []
 
     if cmd == "makemigrations":
         return _format_candidates([(label, "[local]") for label in _local_app_labels(cache)], fmt)
@@ -222,6 +239,9 @@ def complete(cache: dict[str, Any], words: list[str], cword: int, fmt: str = "ba
 
     # A dash prefix always means option completion for the active command.
     if cur.startswith("-"):
+        # autocomplete subcommands have options not captured in the cache.
+        if cmd == "autocomplete":
+            return _format_candidates(_autocomplete_option_candidates(words, manage_idx, pos), fmt)
         return _format_candidates(_option_candidates(cache, cmd), fmt)
 
     return _positional_candidates(cache, cmd, pos, words, manage_idx, fmt)

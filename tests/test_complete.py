@@ -473,3 +473,35 @@ def test_sqlmigrate_pos4_completes_options_only():
     result = complete(_cache(), ["manage.py", "sqlmigrate", "accounts", "0001_initial", ""], 4)
     assert "accounts" not in result
     assert "0001_initial" not in result
+
+
+# --- 0.2.5-2: autocomplete subcommand option completion ---
+
+
+def test_autocomplete_status_dash_completes_verbose():
+    result = complete(_cache(), ["manage.py", "autocomplete", "status", "--"], 3)
+    assert "--verbose" in result
+    assert "--shell" not in result
+
+
+def test_autocomplete_install_dash_completes_shell():
+    result = complete(_cache(), ["manage.py", "autocomplete", "install", "--"], 3)
+    assert "--shell" in result
+    assert "--verbose" not in result
+
+
+def test_autocomplete_install_shell_value_completes_bash_zsh():
+    result = complete(_cache(), ["manage.py", "autocomplete", "install", "--shell", ""], 4)
+    assert "bash" in result
+    assert "zsh" in result
+
+
+def test_autocomplete_install_shell_value_no_other_candidates():
+    result = complete(_cache(), ["manage.py", "autocomplete", "install", "--shell", ""], 4)
+    assert len(result) == 2
+
+
+def test_autocomplete_refresh_dash_returns_empty():
+    # refresh has no subcommand-specific options; fall back to empty
+    result = complete(_cache(), ["manage.py", "autocomplete", "refresh", "--"], 3)
+    assert result == []
