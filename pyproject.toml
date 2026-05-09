@@ -4,8 +4,8 @@ build-backend = "hatchling.build"
 
 [project]
 name = "django-completion"
-version = "0.2.6"
-description = "Shell autocomplete and intelligent suggestions for Django's manage.py"
+version = "0.2.7"
+description = "Tab completion for Django's manage.py — commands, app labels, options, and migration targets in bash and zsh"
 readme = "README.md"
 authors = [
   {name = "Soldatov Serhii", email = "soldatov.own@gmail.com"}
@@ -31,10 +31,16 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: Software Development",
+    "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Shells",
+    "Topic :: Utilities",
     "Typing :: Typed",
 ]
-keywords = ["autocomplete", "completion", "django", "manage.py", "shell"]
+keywords = [
+    "django", "manage.py", "tab-completion", "autocomplete", "completion",
+    "bash", "zsh", "bash-completion", "zsh-completion", "shell", "cli",
+    "developer-tools", "productivity", "migration",
+]
 license = {text = "MIT"}
 license-files = ["LICENSE"]
 
