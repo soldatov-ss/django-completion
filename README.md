@@ -5,9 +5,9 @@
 ![CI](https://github.com/soldatov-ss/django-completion/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/pypi/l/django-completion.svg)
 
-Project-aware shell completion for Django's `manage.py`.
+Project-aware **tab completion** for Django's `manage.py`.
 
-Complete commands, app labels, options, and migration targets from your actual Django project.
+Press Tab to complete commands, app labels, options, and migration targets — in bash and zsh — from your actual Django project.
 
 ```bash
 $ python manage.py migrate <TAB>
@@ -148,7 +148,7 @@ Long term, the goal is to learn from real-world usage and explore whether parts 
 
 ## Documentation
 
-Full documentation is at https://soldatov-ss.github.io/django_completion/.
+Full documentation is at https://soldatov-ss.github.io/django-completion/.
 
 ## Development
 
