@@ -9,16 +9,7 @@ Project-aware **tab completion** for Django's `manage.py`.
 
 Press Tab to complete commands, app labels, options, and migration targets — in bash and zsh — from your actual Django project.
 
-```bash
-$ python manage.py migrate <TAB>
-accounts  billing  blog
-
-$ python manage.py migrate accounts <TAB>
-0001_initial  0002_add_profile  zero
-
-$ python manage.py runserver --<TAB>
---addrport  --ipv6  --noreload  --nothreading
-```
+![django-completion demo](demo.gif)
 
 - **GitHub:** https://github.com/soldatov-ss/django-completion/
 - **PyPI:** https://pypi.org/project/django-completion/
