@@ -20,7 +20,7 @@ jobs:
           persist-credentials: false
 
       # Cache disabled to prevent cache-poisoning attacks on release artifacts.
-      - uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b # v7.3.0
+      - uses: astral-sh/setup-uv@08807647e7069bb48b6ef5acd8ec9567f424441b # v8.1.0
         with:
           enable-cache: false
 
@@ -28,7 +28,7 @@ jobs:
         run: uv build
 
       - name: Upload distribution
-        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f # v7.0.0
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: dist
           path: dist/
