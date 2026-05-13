@@ -11,11 +11,6 @@ Press Tab to complete commands, app labels, options, and migration targets — i
 
 ![django-completion demo](demo.gif)
 
-- **GitHub:** https://github.com/soldatov-ss/django-completion/
-- **PyPI:** https://pypi.org/project/django-completion/
-- **Docs:** https://soldatov-ss.github.io/django-completion/
-- **License:** MIT
-
 ## Installation
 
 Install it in the same environment as your Django project:
