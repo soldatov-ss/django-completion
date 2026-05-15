@@ -146,6 +146,14 @@ def _script_status(shell: Literal["bash", "zsh"], package_version: str) -> tuple
     return script_path, script_version, f"outdated (script v{script_version}, package v{package_version})"
 
 
+def _format_delta(new: int, old: int | None) -> str:
+    """Return a parenthesised change string, or empty string when unchanged or no baseline."""
+    if old is None or new == old:
+        return ""
+    diff = new - old
+    return f" ({'+' if diff > 0 else ''}{diff})"
+
+
 def _human_age(seconds: float) -> str:
     """Convert a duration in seconds to a human-readable string."""
     n = int(seconds)
@@ -389,12 +397,30 @@ class Command(BaseCommand):
 
     def _refresh(self, options: dict[str, Any]) -> None:
         """Force a full cache rebuild and persist it to disk."""
-        from django_completion.cache import _cache_path, build_cache, write_cache
+        from django_completion.cache import _cache_path, build_cache, read_cache, write_cache
 
+        cache_path = _cache_path()
+        old = read_cache(cache_path)
         data = build_cache()
-        write_cache(data, _cache_path())
+        write_cache(data, cache_path)
+
+        cmd_count = len(data["commands"])
+        app_count = len(data["app_labels"])
+        cmd_delta = _format_delta(cmd_count, len(old["commands"]) if old else None)
+        app_delta = _format_delta(app_count, len(old["app_labels"]) if old else None)
+
+        warning_count = len(data.get("warnings", []))
+        warning_suffix = (
+            f" — {warning_count} warning{'s' if warning_count != 1 else ''}"
+            f" (run autocomplete status --verbose for details)"
+            if warning_count
+            else ""
+        )
+
         self.stdout.write(
-            self.style.SUCCESS(f"Cache rebuilt: {len(data['commands'])} commands, {len(data['app_labels'])} apps")
+            self.style.SUCCESS(
+                f"Cache rebuilt: {cmd_count} commands{cmd_delta}, {app_count} apps{app_delta}{warning_suffix}"
+            )
         )
 
     def _uninstall(self, options: dict[str, Any]) -> None:

@@ -3,7 +3,7 @@ import time
 from django.core import management
 import pytest
 
-from django_completion.cache import build_cache, is_stale, read_cache, write_cache
+from django_completion.cache import _collect_commands, build_cache, is_stale, read_cache, write_cache
 
 
 @pytest.mark.django_db
@@ -132,6 +132,33 @@ def test_build_cache_warns_for_uninspectable_command(monkeypatch):
     assert any("migrate" in w and "simulated import failure" in w for w in data["warnings"])
     assert data["command_options"]["migrate"] == []
     assert "migrate" in data["commands"]
+
+
+# --- 0.2.8-2: _collect_commands() ---
+
+
+def test_collect_commands_returns_four_dicts():
+    commands_map = management.get_commands()
+    help_, options, descriptions, warnings = _collect_commands(commands_map)
+    assert isinstance(help_, dict)
+    assert isinstance(options, dict)
+    assert isinstance(descriptions, dict)
+    assert isinstance(warnings, list)
+    assert "migrate" in help_
+
+
+def test_collect_commands_warns_for_broken_class(monkeypatch):
+    original = management.load_command_class
+
+    def broken(app_name, cmd_name):
+        if cmd_name == "migrate":
+            raise RuntimeError("simulated failure")
+        return original(app_name, cmd_name)
+
+    monkeypatch.setattr(management, "load_command_class", broken)
+    _, options, _, warnings = _collect_commands(management.get_commands())
+    assert any("migrate" in w and "simulated failure" in w for w in warnings)
+    assert options["migrate"] == []
 
 
 def test_write_and_read_cache(tmp_path):

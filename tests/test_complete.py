@@ -2,7 +2,7 @@ import json
 import subprocess
 import sys
 
-from django_completion._complete import complete
+from django_completion._complete import _COMMAND_RULES, complete
 
 
 def _run_complete_cli(cache_file, words_json: str, cword: str = "1"):
@@ -505,3 +505,23 @@ def test_autocomplete_refresh_dash_returns_empty():
     # refresh has no subcommand-specific options; fall back to empty
     result = complete(_cache(), ["manage.py", "autocomplete", "refresh", "--"], 3)
     assert result == []
+
+
+# --- 0.2.8-3: command rule registry ---
+
+
+def test_command_rules_migrate():
+    assert _COMMAND_RULES["migrate"].pos2 == "migration_apps"
+    assert _COMMAND_RULES["migrate"].pos3 == "migration_names"
+
+
+def test_command_rules_makemigrations():
+    assert _COMMAND_RULES["makemigrations"].pos2 == "local_apps"
+
+
+def test_command_rules_sqlmigrate():
+    assert _COMMAND_RULES["sqlmigrate"].pos3 == "migration_names_no_zero"
+
+
+def test_command_rules_runserver_absent():
+    assert "runserver" not in _COMMAND_RULES
