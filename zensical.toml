@@ -1,13 +1,16 @@
 [project]
 site_name = "django-completion"
-site_url = "https://soldatov-ss.github.io/django_completion/"
-repo_url = "https://github.com/soldatov-ss/django_completion"
-repo_name = "soldatov-ss/django_completion"
+site_url = "https://soldatov-ss.github.io/django-completion/"
+repo_url = "https://github.com/soldatov-ss/django-completion"
+repo_name = "soldatov-ss/django-completion"
 
 nav = [
   { "Home" = "index.md" },
   { "Installation" = "installation.md" },
+  { "Comparison" = "comparison.md" },
   { "Usage" = "usage.md" },
+  { "How it works" = "how_it_works.md" },
+  { "Troubleshooting" = "troubleshooting.md" },
   { "API Reference" = "api.md" },
 ]
 

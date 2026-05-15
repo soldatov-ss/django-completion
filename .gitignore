@@ -63,3 +63,8 @@ CLAUDE.md
 .agents/
 skills-lock.json
 .codex
+
+# Internal planning docs
+PLAN.md
+V2_ISSUES.md
+PROMOTION.md

@@ -64,7 +64,7 @@ Completion depth:
 - migration names and `zero` after `python manage.py migrate app_label`
 - option descriptions in zsh where available
 
-Django can suggest close command names after an error. django-completion prevents many of those errors by completing project-specific commands, app labels, options, and migration targets before you press Enter.
+Django's built-in completion covers command names and option flags — it has no knowledge of your app labels, migration names, or project-specific targets. django-completion fills that gap. See [comparison with Django's built-in completion](https://soldatov-ss.github.io/django-completion/comparison/) for a full feature breakdown.
 
 ## Commands
 
