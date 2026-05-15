@@ -1,14 +1,34 @@
+from collections.abc import Mapping
 import importlib.util
 import json
 from pathlib import Path
 import threading
 import time
+from typing import Any, TypedDict
 
 from django.apps import apps
 from django.conf import settings
 from django.core import management
 
 from django_completion.classify import classify_app
+
+
+class AppLabelEntry(TypedDict):
+    label: str
+    origin: str  # "local" | "pip"
+
+
+class CacheData(TypedDict):
+    schema_version: int
+    commands: list[str]
+    app_labels: list[AppLabelEntry]
+    command_help: dict[str, str]
+    command_options: dict[str, list[str]]
+    command_option_descriptions: dict[str, dict[str, str]]
+    migrations: dict[str, list[str]]
+    warnings: list[str]
+    generated_at: float
+
 
 CACHE_FILENAME = ".django-completion-cache.json"
 COOLDOWN_SECONDS = 60
@@ -82,20 +102,18 @@ def _discover_migrations(app_configs, migration_modules: dict) -> tuple[dict[str
     return migrations, warnings
 
 
-def build_cache() -> dict:
-    commands_map = management.get_commands()
-    command_names = sorted(commands_map.keys())
+def _collect_commands(
+    commands_map: dict[str, str],
+) -> tuple[dict[str, str], dict[str, list[str]], dict[str, dict[str, str]], list[str]]:
+    """Inspect each command class and collect help text, options, and warnings.
 
-    app_configs = list(apps.get_app_configs())
-    app_labels = [{"label": cfg.label, "origin": classify_app(cfg)} for cfg in app_configs]
-    app_labels.sort(key=lambda entry: (entry["origin"] != "local", entry["label"]))
-
-    migration_modules = getattr(settings, "MIGRATION_MODULES", {}) or {}
-    migrations, warnings = _discover_migrations(app_configs, migration_modules)
-
-    command_options: dict[str, list[str]] = {}
+    Returns (command_help, command_options, command_option_descriptions, warnings).
+    """
     command_help: dict[str, str] = {}
+    command_options: dict[str, list[str]] = {}
     command_option_descriptions: dict[str, dict[str, str]] = {}
+    warnings: list[str] = []
+
     for cmd_name, app_name in commands_map.items():
         try:
             cmd = management.load_command_class(app_name, cmd_name)
@@ -119,6 +137,22 @@ def build_cache() -> dict:
             command_option_descriptions[cmd_name] = {}
             warnings.append(f"Could not inspect command '{cmd_name}': {exc}")
 
+    return command_help, command_options, command_option_descriptions, warnings
+
+
+def build_cache() -> CacheData:
+    commands_map = management.get_commands()
+    command_names = sorted(commands_map.keys())
+
+    app_configs = list(apps.get_app_configs())
+    app_labels: list[AppLabelEntry] = [{"label": cfg.label, "origin": classify_app(cfg)} for cfg in app_configs]
+    app_labels.sort(key=lambda entry: (entry["origin"] != "local", entry["label"]))
+
+    migration_modules = getattr(settings, "MIGRATION_MODULES", {}) or {}
+    migrations, migration_warnings = _discover_migrations(app_configs, migration_modules)
+
+    command_help, command_options, command_option_descriptions, command_warnings = _collect_commands(commands_map)
+
     return {
         "schema_version": 2,
         "commands": command_names,
@@ -127,12 +161,12 @@ def build_cache() -> dict:
         "command_options": command_options,
         "command_option_descriptions": command_option_descriptions,
         "migrations": migrations,
-        "warnings": warnings,
+        "warnings": migration_warnings + command_warnings,
         "generated_at": time.time(),
     }
 
 
-def write_cache(data: dict, path: Path | None = None) -> None:
+def write_cache(data: Mapping[str, Any], path: Path | None = None) -> None:
     if path is None:
         path = _cache_path()
     path.write_text(json.dumps(data, indent=2))

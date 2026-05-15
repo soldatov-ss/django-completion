@@ -1,5 +1,10 @@
+from io import StringIO
+
+from django.core.management import call_command
 from django.core.management.base import CommandError
 import pytest
+
+from django_completion.management.commands.autocomplete import _format_delta
 
 
 @pytest.mark.django_db
@@ -120,3 +125,61 @@ def test_detect_shell_bash_wins_when_both_set(monkeypatch):
 
     reload(mod)
     assert mod._detect_shell() == "bash"
+
+
+# --- 0.2.8-1: refresh delta output ---
+
+
+def test_format_delta_positive():
+    assert _format_delta(98, 96) == " (+2)"
+
+
+def test_format_delta_negative():
+    assert _format_delta(95, 96) == " (-1)"
+
+
+def test_format_delta_no_change():
+    assert _format_delta(96, 96) == ""
+
+
+def test_format_delta_no_old():
+    assert _format_delta(96, None) == ""
+
+
+@pytest.mark.django_db
+def test_refresh_output_shows_totals(tmp_path, monkeypatch):
+    monkeypatch.setattr("django_completion.management.commands.autocomplete._INSTALL_DIR", tmp_path / "install")
+    monkeypatch.setattr("django_completion.cache.CACHE_FILENAME", str(tmp_path / "cache.json"))
+
+    out = StringIO()
+    call_command("autocomplete", "refresh", stdout=out)
+    output = out.getvalue()
+
+    assert "Cache rebuilt:" in output
+    assert "commands" in output
+    assert "apps" in output
+
+
+@pytest.mark.django_db
+def test_refresh_output_shows_no_delta_on_first_run(tmp_path, monkeypatch):
+    cache_path = tmp_path / "cache.json"
+    monkeypatch.setattr("django_completion.cache.CACHE_FILENAME", str(cache_path))
+
+    out = StringIO()
+    call_command("autocomplete", "refresh", stdout=out)
+    output = out.getvalue()
+
+    # No prior cache → no delta in parentheses
+    assert "(+" not in output
+    assert "(-" not in output
+
+
+@pytest.mark.django_db
+def test_refresh_output_no_warning_suffix_when_no_warnings(tmp_path, monkeypatch, settings):
+    cache_path = tmp_path / "cache.json"
+    monkeypatch.setattr("django_completion.cache.CACHE_FILENAME", str(cache_path))
+
+    out = StringIO()
+    call_command("autocomplete", "refresh", stdout=out)
+
+    assert "warning" not in out.getvalue().lower()

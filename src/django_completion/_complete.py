@@ -1,24 +1,36 @@
 import argparse
 from collections.abc import Sequence
+from dataclasses import dataclass
 import json
 from pathlib import Path
 from typing import Any
 
-# Commands known to accept app labels as positional arguments.
-# Commands not in this set fall back to options-only completion.
-_APP_LABEL_COMMANDS = frozenset(
-    {
-        "check",
-        "dumpdata",
-        "migrate",
-        "showmigrations",
-        "sqlmigrate",
-        "test",
-    }
-)
+# See cache.CacheData for the full v2 cache schema.
+_CacheT = dict[str, Any]
+
+_Pos = str  # "migration_apps" | "local_apps" | "all_apps" | "migration_names" | "migration_names_no_zero" | "options"
 
 
-def _load_cache(path: str) -> dict[str, Any] | None:
+@dataclass(frozen=True)
+class CommandRule:
+    pos2: _Pos = "options"
+    pos3: _Pos = "options"
+
+
+# Declarative completion rules per command. Commands absent from this registry
+# fall back to options-only completion (safe default for unknown/custom commands).
+_COMMAND_RULES: dict[str, CommandRule] = {
+    "migrate": CommandRule(pos2="migration_apps", pos3="migration_names"),
+    "showmigrations": CommandRule(pos2="migration_apps", pos3="options"),
+    "sqlmigrate": CommandRule(pos2="migration_apps", pos3="migration_names_no_zero"),
+    "makemigrations": CommandRule(pos2="local_apps", pos3="options"),
+    "check": CommandRule(pos2="all_apps", pos3="options"),
+    "dumpdata": CommandRule(pos2="all_apps", pos3="options"),
+    "test": CommandRule(pos2="all_apps", pos3="options"),
+}
+
+
+def _load_cache(path: str) -> _CacheT | None:
     """Read a completion cache from disk, returning None when it is unavailable."""
     try:
         data = json.loads(Path(path).read_text())
@@ -33,7 +45,7 @@ def _manage_index(words: list[str], cword: int) -> int | None:
     return indexes[-1] if indexes else None
 
 
-def _app_labels(cache: dict[str, Any]) -> list[tuple[str, str]]:
+def _app_labels(cache: _CacheT) -> list[tuple[str, str]]:
     """Return cached app labels with their origin in cache order."""
     labels: list[tuple[str, str]] = []
 
@@ -48,7 +60,7 @@ def _app_labels(cache: dict[str, Any]) -> list[tuple[str, str]]:
     return labels
 
 
-def _migration_app_labels(cache: dict[str, Any]) -> list[tuple[str, str]]:
+def _migration_app_labels(cache: _CacheT) -> list[tuple[str, str]]:
     """Return app labels that have migrations, local apps first then others alphabetically."""
     migrations = cache.get("migrations")
     if not isinstance(migrations, dict):
@@ -66,7 +78,7 @@ def _migration_app_labels(cache: dict[str, Any]) -> list[tuple[str, str]]:
     return result
 
 
-def _options(cache: dict[str, Any], cmd: str | None) -> list[str]:
+def _options(cache: _CacheT, cmd: str | None) -> list[str]:
     """Return cached option strings for a command."""
     command_options = cache.get("command_options", {})
     if not isinstance(cmd, str) or not isinstance(command_options, dict):
@@ -78,12 +90,12 @@ def _options(cache: dict[str, Any], cmd: str | None) -> list[str]:
     return [opt for opt in opts if isinstance(opt, str) and opt]
 
 
-def _local_app_labels(cache: dict[str, Any]) -> list[str]:
+def _local_app_labels(cache: _CacheT) -> list[str]:
     """Return app labels where origin is 'local', alphabetically sorted."""
     return sorted(label for label, origin in _app_labels(cache) if origin == "local")
 
 
-def _migration_names(cache: dict[str, Any], app_label: str | None, *, include_zero: bool = True) -> list[str]:
+def _migration_names(cache: _CacheT, app_label: str | None, *, include_zero: bool = True) -> list[str]:
     """Return cached migration names for an app, optionally including the zero target."""
     migrations = cache.get("migrations")
     if not isinstance(app_label, str) or not isinstance(migrations, dict):
@@ -110,7 +122,7 @@ def _format_candidates(candidates: Sequence[tuple[str, str | None]], fmt: str) -
     return [value for value, _description in candidates if value]
 
 
-def _command_candidates(cache: dict[str, Any]) -> list[tuple[str, str]]:
+def _command_candidates(cache: _CacheT) -> list[tuple[str, str]]:
     """Return command candidates with help descriptions."""
     command_help = cache.get("command_help", {})
     if not isinstance(command_help, dict):
@@ -120,7 +132,7 @@ def _command_candidates(cache: dict[str, Any]) -> list[tuple[str, str]]:
     return [(cmd_name, command_help.get(cmd_name, "")) for cmd_name in commands]
 
 
-def _option_candidates(cache: dict[str, Any], cmd: str | None) -> list[tuple[str, str]]:
+def _option_candidates(cache: _CacheT, cmd: str | None) -> list[tuple[str, str]]:
     """Return option candidates with descriptions for a command."""
     option_descriptions = cache.get("command_option_descriptions", {})
     if not isinstance(option_descriptions, dict):
@@ -131,45 +143,15 @@ def _option_candidates(cache: dict[str, Any], cmd: str | None) -> list[tuple[str
     return [(opt, descriptions.get(opt, "")) for opt in _options(cache, cmd)]
 
 
-def _app_and_option_candidates(cache: dict[str, Any], cmd: str | None) -> list[tuple[str, str]]:
+def _app_and_option_candidates(cache: _CacheT, cmd: str | None) -> list[tuple[str, str]]:
     """Return v1-style app label and option candidates for a command."""
     candidates = [(label, f"[{origin}]") for label, origin in _app_labels(cache)]
     candidates.extend(_option_candidates(cache, cmd))
     return candidates
 
 
-def _migration_app_label_candidates(cache: dict[str, Any], fmt: str) -> list[str]:
+def _migration_app_label_candidates(cache: _CacheT, fmt: str) -> list[str]:
     return _format_candidates([(label, f"[{origin}]") for label, origin in _migration_app_labels(cache)], fmt)
-
-
-def _migration_command_candidates(
-    cache: dict[str, Any],
-    cmd: str,
-    pos: int,
-    words: list[str],
-    manage_idx: int,
-    fmt: str,
-) -> list[str]:
-    """Handle migrate / showmigrations / sqlmigrate positional completion.
-
-    pos 2          → apps that have migrations (local-first)
-    pos 3, migrate → migration names for the chosen app, including "zero"
-    pos 3, sqlmig  → migration names for the chosen app, excluding "zero"
-    pos 3, showmig → (not reached; showmigrations has no migration-name slot)
-    otherwise      → options only
-    """
-    if pos == 2:
-        return _migration_app_label_candidates(cache, fmt)
-
-    if pos == 3 and cmd == "migrate":
-        app = words[manage_idx + 2] if manage_idx + 2 < len(words) else None
-        return _format_candidates([(name, "") for name in _migration_names(cache, app)], fmt)
-
-    if pos == 3 and cmd == "sqlmigrate":
-        app = words[manage_idx + 2] if manage_idx + 2 < len(words) else None
-        return _format_candidates([(name, "") for name in _migration_names(cache, app, include_zero=False)], fmt)
-
-    return _format_candidates(_option_candidates(cache, cmd), fmt)
 
 
 def _autocomplete_option_candidates(words: list[str], manage_idx: int, pos: int) -> list[tuple[str, str]]:
@@ -183,7 +165,7 @@ def _autocomplete_option_candidates(words: list[str], manage_idx: int, pos: int)
 
 
 def _positional_candidates(
-    cache: dict[str, Any],
+    cache: _CacheT,
     cmd: str | None,
     pos: int,
     words: list[str],
@@ -202,20 +184,25 @@ def _positional_candidates(
             return _format_candidates([("bash", ""), ("zsh", "")], fmt)
         return []
 
-    if cmd == "makemigrations":
+    rule = _COMMAND_RULES.get(cmd) if isinstance(cmd, str) else None
+    slot = (rule.pos2 if pos == 2 else rule.pos3 if pos == 3 else "options") if rule is not None else "options"
+
+    if slot == "migration_apps":
+        return _migration_app_label_candidates(cache, fmt)
+    if slot == "migration_names":
+        app = words[manage_idx + 2] if manage_idx + 2 < len(words) else None
+        return _format_candidates([(name, "") for name in _migration_names(cache, app)], fmt)
+    if slot == "migration_names_no_zero":
+        app = words[manage_idx + 2] if manage_idx + 2 < len(words) else None
+        return _format_candidates([(name, "") for name in _migration_names(cache, app, include_zero=False)], fmt)
+    if slot == "local_apps":
         return _format_candidates([(label, "[local]") for label in _local_app_labels(cache)], fmt)
-
-    if cmd in ("migrate", "showmigrations", "sqlmigrate") and isinstance(cmd, str):
-        return _migration_command_candidates(cache, cmd, pos, words, manage_idx, fmt)
-
-    # Whitelist: commands known to accept app labels get app-label + option completion.
-    # Everything else (runserver, shell, custom commands, etc.) gets options only.
-    if cmd in _APP_LABEL_COMMANDS:
+    if slot == "all_apps":
         return _format_candidates(_app_and_option_candidates(cache, cmd), fmt)
     return _format_candidates(_option_candidates(cache, cmd), fmt)
 
 
-def complete(cache: dict[str, Any], words: list[str], cword: int, fmt: str = "bash") -> list[str]:
+def complete(cache: _CacheT, words: list[str], cword: int, fmt: str = "bash") -> list[str]:
     """Return completion candidates for a tokenized manage.py command line."""
     if cword < 0 or cword >= len(words):
         return []
