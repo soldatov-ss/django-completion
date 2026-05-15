@@ -199,7 +199,7 @@ wheels = [
 
 [[package]]
 name = "django-completion"
-version = "0.2.3"
+version = "0.2.9"
 source = { editable = "." }
 dependencies = [
     { name = "django", version = "5.2.13", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.12'" },

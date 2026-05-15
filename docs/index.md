@@ -38,3 +38,5 @@ $ python manage.py runserver --<TAB>
 ## Why it exists
 
 Django can suggest close command names after an error. django-completion prevents many of those errors by completing project-specific commands, app labels, options, and migration targets before you press Enter.
+
+See [Comparison with Django's built-in completion](comparison.md) for a feature-by-feature breakdown.
