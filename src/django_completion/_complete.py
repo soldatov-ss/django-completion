@@ -3,12 +3,12 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 import json
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 # See cache.CacheData for the full v2 cache schema.
 _CacheT = dict[str, Any]
 
-_Pos = str  # "migration_apps" | "local_apps" | "all_apps" | "migration_names" | "migration_names_no_zero" | "options"
+_Pos = Literal["migration_apps", "local_apps", "all_apps", "migration_names", "migration_names_no_zero", "options"]
 
 
 @dataclass(frozen=True)
