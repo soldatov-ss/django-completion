@@ -4,7 +4,7 @@ import json
 from pathlib import Path
 import threading
 import time
-from typing import Any, TypedDict
+from typing import Any, Literal, TypedDict
 
 from django.apps import apps
 from django.conf import settings
@@ -15,7 +15,7 @@ from django_completion.classify import classify_app
 
 class AppLabelEntry(TypedDict):
     label: str
-    origin: str  # "local" | "pip"
+    origin: Literal["local", "pip"]
 
 
 class CacheData(TypedDict):
