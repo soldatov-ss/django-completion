@@ -117,6 +117,7 @@ indent-width = 4
 lint.exclude = [
     'venv', '.git',
     '.idea', '__pycache__',
+    'demo/**',
 ]
 lint.select = [
     "I", # isort
