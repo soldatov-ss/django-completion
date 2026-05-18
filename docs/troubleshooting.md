@@ -47,6 +47,8 @@ The script version is also tracked: after a package upgrade the script may be ou
 
 ## Tab completion shows nothing
 
+First, confirm you are inside the project tree. Cache lookup starts at `$PWD` and walks upward — if your terminal is open at `~`, `/tmp`, or any directory outside the project, completion silently returns nothing.
+
 Check that the hook is installed and the script is current:
 
 ```bash

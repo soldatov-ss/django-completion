@@ -15,6 +15,8 @@ uv run python ./manage.py <TAB>
 
 Any shell word ending in `manage.py` is treated as the project command marker. Completion context is relative to the word after that marker.
 
+> **Tip:** the cache is found by walking up from `$PWD`. Make sure your terminal is open inside the project directory.
+
 ## What completes
 
 First argument after `manage.py`:
