@@ -428,6 +428,45 @@ def test_autocomplete_status_verbose_outputs_diagnostics(tmp_path, settings, iso
     assert "Package version:" in output
 
 
+@pytest.mark.django_db
+def test_autocomplete_status_verbose_shows_source_reminder_when_installed_and_current(
+    tmp_path, settings, isolated_autocomplete_paths
+):
+    settings.BASE_DIR = str(tmp_path)
+    _, _install_dir, bashrc, _ = isolated_autocomplete_paths
+
+    from django.core.management import call_command
+
+    call_command("autocomplete", "install", "--shell", "bash", stdout=io.StringIO(), no_color=True)
+
+    out = io.StringIO()
+    call_command("autocomplete", "status", "--verbose", stdout=out, no_color=True)
+    output = out.getvalue()
+
+    assert f"source {bashrc}" in output
+
+
+@pytest.mark.django_db
+def test_autocomplete_status_verbose_no_source_reminder_when_hook_not_installed(
+    tmp_path, settings, isolated_autocomplete_paths
+):
+    settings.BASE_DIR = str(tmp_path)
+    autocomplete_mod, install_dir, _bashrc, _ = isolated_autocomplete_paths
+    pkg_version = autocomplete_mod._package_version()
+    install_dir.mkdir(parents=True)
+    script_path = install_dir / "completion.bash"
+    script_path.write_text(f"# django-completion version: {pkg_version}\n")
+    # hook is NOT installed (bashrc is empty)
+
+    from django.core.management import call_command
+
+    out = io.StringIO()
+    call_command("autocomplete", "status", "--verbose", stdout=out, no_color=True)
+    output = out.getvalue()
+
+    assert "If completion is not active" not in output
+
+
 # ── _human_age unit tests ─────────────────────────────────────────────────────
 
 
