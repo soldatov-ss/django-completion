@@ -9,7 +9,7 @@ Project-aware **tab completion** for Django's `manage.py`.
 
 Press Tab to complete commands, app labels, options, and migration targets — in bash and zsh — from your actual Django project.
 
-![django-completion demo](demo.gif)
+![django-completion demo](https://raw.githubusercontent.com/soldatov-ss/django-completion/main/demo.gif)
 
 ## Installation
 
@@ -49,7 +49,6 @@ Supported invocation styles:
 
 ```bash
 manage.py <TAB>
-./manage.py <TAB>
 python manage.py <TAB>
 python3 manage.py <TAB>
 python ./manage.py <TAB>
@@ -59,7 +58,7 @@ uv run python manage.py <TAB>
 Completion depth:
 
 - command names after `manage.py`
-- app labels and option flags for management commands
+- option flags for all commands; app labels for `migrate`, `check`, `dumpdata`, `test`, and `makemigrations`
 - `migrate` app labels filtered to apps that have migrations
 - migration names and `zero` after `python manage.py migrate app_label`
 - option descriptions in zsh where available
@@ -92,7 +91,7 @@ DJANGO_COMPLETION_AUTO_REFRESH = False
 | Shells | bash, zsh |
 | OS | Linux and macOS expected |
 | Windows | not officially supported; WSL with bash/zsh may work |
-| Invocations | `manage.py`, `./manage.py`, `python manage.py`, `python3 manage.py`, `uv run python manage.py` |
+| Invocations | `manage.py`, `python manage.py`, `python3 manage.py`, `python ./manage.py`, `uv run python manage.py` |
 | Completion depth | commands, app labels, options, migrate app labels, migration names |
 
 ## Safety and Privacy
