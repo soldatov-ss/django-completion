@@ -189,6 +189,29 @@ def test_bash_uv_run_python_manage_completes_commands(cache_dir):
     assert "runserver" in completions
 
 
+@pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
+def test_bash_uv_run_python_manage_migrate_completes_migration_names(cache_dir):
+    completions = _bash_complete(
+        cache_dir,
+        ["uv", "run", "python", "manage.py", "migrate", "myapp", ""],
+        6,
+        "_django_python_completion",
+    )
+    assert "0001_initial" in completions
+    assert "0002_add_user" in completions
+    assert "zero" in completions
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
+def test_bash_empty_completions_do_not_leak_filenames(cache_dir):
+    # Create files in the cache dir so filename fallback would produce results
+    (cache_dir / "somefile.py").write_text("")
+    (cache_dir / "other.txt").write_text("")
+    # An unknown command has no cached options — helper returns nothing
+    completions = _bash_complete(cache_dir, ["manage.py", "unknowncmd", ""], 2)
+    assert completions == []
+
+
 @pytest.mark.skipif(not shutil.which("zsh"), reason="zsh not available")
 def test_zsh_script_sources_without_error(cache_dir):
     result = subprocess.run(
