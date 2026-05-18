@@ -86,7 +86,7 @@ The Python package and the generated shell script can get out of sync after an u
 
 ## Wrong shell was detected
 
-`autocomplete install` detects your shell by checking `$ZSH_VERSION` and `$BASH_VERSION` (set by the shell itself), then falls back to `$SHELL`. If it still installs for the wrong shell, specify explicitly:
+`autocomplete install` detects your shell by checking `$BASH_VERSION` first (bash always sets this in the current process; `$ZSH_VERSION` can be inherited by a bash child spawned inside a zsh session), then `$ZSH_VERSION`, then `$SHELL`. If it still installs for the wrong shell, specify explicitly:
 
 ```bash
 python manage.py autocomplete install --shell bash
