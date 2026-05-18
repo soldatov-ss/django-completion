@@ -6,7 +6,6 @@ Once installed, tab completion works for these invocation styles:
 
 ```bash
 manage.py <TAB>
-./manage.py <TAB>
 python manage.py <TAB>
 python3 manage.py <TAB>
 python ./manage.py <TAB>

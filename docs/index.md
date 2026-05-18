@@ -32,7 +32,7 @@ $ python manage.py runserver --<TAB>
 | Shells | bash, zsh |
 | OS | Linux and macOS expected |
 | Windows | not officially supported; WSL with bash/zsh may work |
-| Invocations | `manage.py`, `./manage.py`, `python manage.py`, `python3 manage.py`, `uv run python manage.py` |
+| Invocations | `manage.py`, `python manage.py`, `python3 manage.py`, `python ./manage.py`, `uv run python manage.py` |
 | Completion depth | commands, app labels, options, migrate app labels, migration names |
 
 ## Why it exists
