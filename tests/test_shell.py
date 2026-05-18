@@ -189,6 +189,29 @@ def test_bash_uv_run_python_manage_completes_commands(cache_dir):
     assert "runserver" in completions
 
 
+@pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
+def test_bash_uv_run_python_manage_migrate_completes_migration_names(cache_dir):
+    completions = _bash_complete(
+        cache_dir,
+        ["uv", "run", "python", "manage.py", "migrate", "myapp", ""],
+        6,
+        "_django_python_completion",
+    )
+    assert "0001_initial" in completions
+    assert "0002_add_user" in completions
+    assert "zero" in completions
+
+
+@pytest.mark.skipif(not shutil.which("bash"), reason="bash not available")
+def test_bash_empty_completions_do_not_leak_filenames(cache_dir):
+    # Create files in the cache dir so filename fallback would produce results
+    (cache_dir / "somefile.py").write_text("")
+    (cache_dir / "other.txt").write_text("")
+    # An unknown command has no cached options — helper returns nothing
+    completions = _bash_complete(cache_dir, ["manage.py", "unknowncmd", ""], 2)
+    assert completions == []
+
+
 @pytest.mark.skipif(not shutil.which("zsh"), reason="zsh not available")
 def test_zsh_script_sources_without_error(cache_dir):
     result = subprocess.run(
@@ -403,6 +426,45 @@ def test_autocomplete_status_verbose_outputs_diagnostics(tmp_path, settings, iso
     assert "bash script:" in output
     assert "(v0.0.1, outdated)" in output
     assert "Package version:" in output
+
+
+@pytest.mark.django_db
+def test_autocomplete_status_verbose_shows_source_reminder_when_installed_and_current(
+    tmp_path, settings, isolated_autocomplete_paths
+):
+    settings.BASE_DIR = str(tmp_path)
+    _, _install_dir, bashrc, _ = isolated_autocomplete_paths
+
+    from django.core.management import call_command
+
+    call_command("autocomplete", "install", "--shell", "bash", stdout=io.StringIO(), no_color=True)
+
+    out = io.StringIO()
+    call_command("autocomplete", "status", "--verbose", stdout=out, no_color=True)
+    output = out.getvalue()
+
+    assert f"source {bashrc}" in output
+
+
+@pytest.mark.django_db
+def test_autocomplete_status_verbose_no_source_reminder_when_hook_not_installed(
+    tmp_path, settings, isolated_autocomplete_paths
+):
+    settings.BASE_DIR = str(tmp_path)
+    autocomplete_mod, install_dir, _bashrc, _ = isolated_autocomplete_paths
+    pkg_version = autocomplete_mod._package_version()
+    install_dir.mkdir(parents=True)
+    script_path = install_dir / "completion.bash"
+    script_path.write_text(f"# django-completion version: {pkg_version}\n")
+    # hook is NOT installed (bashrc is empty)
+
+    from django.core.management import call_command
+
+    out = io.StringIO()
+    call_command("autocomplete", "status", "--verbose", stdout=out, no_color=True)
+    output = out.getvalue()
+
+    assert "If completion is not active" not in output
 
 
 # ── _human_age unit tests ─────────────────────────────────────────────────────

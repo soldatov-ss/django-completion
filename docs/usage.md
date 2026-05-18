@@ -6,7 +6,6 @@ Once installed, tab completion works for these invocation styles:
 
 ```bash
 manage.py <TAB>
-./manage.py <TAB>
 python manage.py <TAB>
 python3 manage.py <TAB>
 python ./manage.py <TAB>
@@ -15,6 +14,8 @@ uv run python ./manage.py <TAB>
 ```
 
 Any shell word ending in `manage.py` is treated as the project command marker. Completion context is relative to the word after that marker.
+
+> **Tip:** the cache is found by walking up from `$PWD`. Make sure your terminal is open inside the project directory.
 
 ## What completes
 
@@ -46,7 +47,7 @@ python manage.py migrate accounts <TAB>
 0001_initial  0002_add_profile  zero
 ```
 
-Other commands keep the v1 fallback behavior: app labels plus option flags. django-completion does not infer every custom command's argument semantics.
+Other commands complete option flags only — django-completion does not infer positional argument semantics for commands it has not been explicitly taught.
 
 In zsh, command and option descriptions are shown when Django exposes them.
 

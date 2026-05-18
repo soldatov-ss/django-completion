@@ -394,6 +394,9 @@ class Command(BaseCommand):
             else:
                 current_label = self.style.WARNING("outdated")
             self.stdout.write(f"{shell} script: {script_path} ({version_label}, {current_label})")
+            if status == "current" and _is_installed(_SHELL_RC[shell]):
+                rc_path = _SHELL_RC[shell]
+                self.stdout.write(f"  If completion is not active in this session, run: source {rc_path}")
 
     def _refresh(self, options: dict[str, Any]) -> None:
         """Force a full cache rebuild and persist it to disk."""

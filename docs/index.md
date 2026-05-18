@@ -22,6 +22,7 @@ $ python manage.py runserver --<TAB>
 3. [How it works](how_it_works.md) — cache, shell hooks, helper process, and refresh lifecycle
 4. [Troubleshooting](troubleshooting.md) — common problems and fixes
 5. [API Reference](api.md) — supported commands, cache schema, and compatibility notes
+6. [Comparison with Django's built-in completion](comparison.md) — feature-by-feature breakdown
 
 ## Compatibility
 
@@ -32,7 +33,7 @@ $ python manage.py runserver --<TAB>
 | Shells | bash, zsh |
 | OS | Linux and macOS expected |
 | Windows | not officially supported; WSL with bash/zsh may work |
-| Invocations | `manage.py`, `./manage.py`, `python manage.py`, `python3 manage.py`, `uv run python manage.py` |
+| Invocations | `manage.py`, `python manage.py`, `python3 manage.py`, `python ./manage.py`, `uv run python manage.py` |
 | Completion depth | commands, app labels, options, migrate app labels, migration names |
 
 ## Why it exists

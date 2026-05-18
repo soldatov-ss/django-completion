@@ -14,39 +14,60 @@ if sys.version_info >= (3, 11):
 else:
     import tomli as tomllib
 
-# TODO (skip me): how does autocompletion work in UV? there's a tab appears — needs investigation
-# v3/later: cache file not found inside Docker container (path mismatch between host and container)
-# v3/later: docker-compose -f local.yml run --rm django python manage.py migrate — host shell completes
-#           from mounted volume; needs docs explaining: run autocomplete refresh inside container,
-#           host shell reads cache from mounted project directory
-
-# TODO (skip me): test autocomplete status --verbose command and try to simulate warnings
-# TODO (skip me): test cache refresh with fallen
-# TODO (skip me): test more warnings in the other projects
-
 
 def _run(*cmd: str) -> None:
     print(f"$ {' '.join(cmd)}")
     subprocess.run(cmd, check=True)
 
 
-def main() -> None:
-    # Read version and project name from pyproject.toml
-    pyproject = tomllib.loads(Path("pyproject.toml").read_text())
-    name = pyproject["project"]["name"]
-    version = pyproject["project"]["version"]
-    tag = f"v{version}"
+def _check_clean_tree() -> None:
+    result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, check=True)
+    if result.stdout.strip():
+        print("Uncommitted changes detected. Clean the working tree before releasing:")
+        for line in result.stdout.splitlines():
+            print(f"  {line}")
+        sys.exit(1)
 
-    # Strip the H1 heading line from the changelog entry (gh uses it as the title)
+
+def _check_changelog(version: str) -> str:
     notes_path = Path(f"CHANGELOG/{version}.md")
+    if not notes_path.exists():
+        print(f"Missing changelog entry: {notes_path}")
+        sys.exit(1)
+
     lines = notes_path.read_text().splitlines(keepends=True)
+    # Strip the H1 heading line (gh uses it as the release title)
     if lines and lines[0].startswith("# "):
         lines = lines[1:]
         if lines and not lines[0].strip():
             lines = lines[1:]
     notes = "".join(lines).rstrip()
 
-    # Tag, push, then create the GitHub release
+    if not notes:
+        print(f"Changelog entry {notes_path} exists but is empty after the heading.")
+        sys.exit(1)
+
+    return notes
+
+
+def _check_tests() -> None:
+    print("$ uv run pytest -q")
+    result = subprocess.run(["uv", "run", "pytest", "-q"], check=False)
+    if result.returncode != 0:
+        print("Tests failed. Fix them before releasing.")
+        sys.exit(1)
+
+
+def main() -> None:
+    pyproject = tomllib.loads(Path("pyproject.toml").read_text())
+    name = pyproject["project"]["name"]
+    version = pyproject["project"]["version"]
+    tag = f"v{version}"
+
+    _check_clean_tree()
+    notes = _check_changelog(version)
+    _check_tests()
+
     _run("git", "tag", "-a", tag, "-m", f"Release {tag}")
     _run("git", "push", "origin", tag)
     _run(

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "django-completion"
-version = "0.2.9"
+version = "0.2.10"
 description = "Tab completion for Django's manage.py — commands, app labels, options, and migration targets in bash and zsh"
 readme = "README.md"
 authors = [
@@ -117,6 +117,7 @@ indent-width = 4
 lint.exclude = [
     'venv', '.git',
     '.idea', '__pycache__',
+    'demo/**',
 ]
 lint.select = [
     "I", # isort
