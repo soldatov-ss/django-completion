@@ -161,7 +161,27 @@ The usual pattern is:
 - keep the project directory mounted so the host shell can read `.django-completion-cache.json`
 - install the shell hook on the host if the host shell is where you press Tab
 
+To rebuild the cache inside a running container:
+
+```bash
+# docker
+docker exec -it <container_name> python manage.py autocomplete refresh
+
+# docker compose
+docker compose exec web python manage.py autocomplete refresh
+```
+
+The cache file is written to `BASE_DIR` inside the container. As long as that directory is mounted to the same path on the host, the host shell will find it automatically.
+
 Installing shell hooks inside short-lived containers is usually not useful because the shell RC file and generated scripts disappear with the container.
+
+## Does this work with WSL?
+
+Yes, with a few things to keep in mind:
+
+- Install the shell hook inside WSL, not in Windows or PowerShell. Run `python manage.py autocomplete install` from your WSL bash or zsh session.
+- `$PWD` inside WSL must be inside the mounted project directory when you press Tab. If your project is at `/mnt/c/Users/you/project`, `cd` there before using completion.
+- The completion script is written to your WSL home directory (`~/.local/share/django-completion/`). It is not accessible from Windows-native shells.
 
 ## Is it safe in production?
 
