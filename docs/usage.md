@@ -45,7 +45,7 @@ python manage.py migrate accounts <TAB>
 0001_initial  0002_add_profile  zero
 ```
 
-Other commands keep the v1 fallback behavior: app labels plus option flags. django-completion does not infer every custom command's argument semantics.
+Other commands complete option flags only — django-completion does not infer positional argument semantics for commands it has not been explicitly taught.
 
 In zsh, command and option descriptions are shown when Django exposes them.
 
