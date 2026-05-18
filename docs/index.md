@@ -22,6 +22,7 @@ $ python manage.py runserver --<TAB>
 3. [How it works](how_it_works.md) — cache, shell hooks, helper process, and refresh lifecycle
 4. [Troubleshooting](troubleshooting.md) — common problems and fixes
 5. [API Reference](api.md) — supported commands, cache schema, and compatibility notes
+6. [Comparison with Django's built-in completion](comparison.md) — feature-by-feature breakdown
 
 ## Compatibility
 
