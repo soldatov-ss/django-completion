@@ -1,0 +1,49 @@
+{% extends "base.html" %}
+
+{% block extrahead %}
+  {{ super() }}
+  {% if not page.url %}
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "django-completion",
+    "applicationCategory": "DeveloperApplication",
+    "operatingSystem": "Linux, macOS",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    },
+    "url": "https://soldatov-ss.github.io/django-completion/",
+    "downloadUrl": "https://pypi.org/project/django-completion/",
+    "softwareVersion": "0.2.11",
+    "softwareRequirements": "Python 3.10+, Django 4.2+",
+    "featureList": [
+      "Completes Django management command names",
+      "Completes app labels from INSTALLED_APPS",
+      "Completes migration names per app",
+      "Completes option flags and arguments",
+      "Works in bash and zsh",
+      "Reads a local JSON cache — no Django import at completion time",
+      "Auto-refreshes cache after migrate, makemigrations, and startapp"
+    ],
+    "author": {
+      "@type": "Person",
+      "name": "Soldatov Serhii",
+      "url": "https://github.com/soldatov-ss"
+    },
+    "license": "https://opensource.org/licenses/MIT",
+    "description": "Project-aware tab completion for Django's manage.py — completes commands, app labels, options, and migration targets in bash and zsh."
+  }
+  </script>
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    "name": "django-completion",
+    "url": "https://soldatov-ss.github.io/django-completion/"
+  }
+  </script>
+  {% endif %}
+{% endblock %}

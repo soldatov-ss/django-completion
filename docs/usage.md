@@ -135,3 +135,6 @@ These are currently out of scope:
 - global options before command, such as `python manage.py --settings config.settings migrate`
 - custom aliases such as `dj migrate`
 - database-aware applied/unapplied migration filtering
+
+---
+*By [Soldatov Serhii](https://github.com/soldatov-ss) · Last updated: May 2026*

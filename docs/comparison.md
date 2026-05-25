@@ -6,8 +6,8 @@ Django ships its own shell completion mechanism. This page explains what it prov
 
 Django's completion support comes in two forms:
 
-- A bash completion script (`django-admin.bash`) that system package managers may install automatically. It hooks into bash's completion system and completes command names after `django-admin` and `manage.py`.
-- Argparse's built-in completion integration, available on Python 3.9+ via `argparse.ArgumentParser`. When wired up, it completes option flags for any command.
+- A bash completion script ([`django-admin.bash`](https://github.com/django/django/blob/main/extras/django_bash_completion)) that system package managers may install automatically. It hooks into bash's completion system and completes command names after `django-admin` and `manage.py`.
+- Argparse's built-in completion integration, available on Python 3.9+ via [`argparse.ArgumentParser`](https://docs.python.org/3/library/argparse.html). When wired up, it completes option flags for any command.
 
 Both forms work without installing any additional package.
 
@@ -49,3 +49,6 @@ The built-in mechanism is generic — it reads argparse metadata at completion t
 **Use django-completion** if you work with migrations regularly, manage many apps, or want zsh support with descriptions. The install is one command and the cache refreshes automatically.
 
 **Both can coexist.** django-completion's shell hook activates when a `.django-completion-cache.json` is found in the project directory. For `django-admin` (which django-completion does not support), Django's built-in completion continues to apply.
+
+---
+*By [Soldatov Serhii](https://github.com/soldatov-ss) · Last updated: May 2026*

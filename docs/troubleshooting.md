@@ -193,3 +193,6 @@ if DEBUG:
 ```
 
 Use the environment switch that matches your deployment setup.
+
+---
+*By [Soldatov Serhii](https://github.com/soldatov-ss) · Last updated: May 2026*
