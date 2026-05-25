@@ -66,8 +66,7 @@ skills-lock.json
 
 # Internal planning docs
 PLAN.md
-tmp/V2_ISSUES.md
-tmp/PROMOTION.md
+tmp/*
 
 # Dev tools
 cover-image.html
