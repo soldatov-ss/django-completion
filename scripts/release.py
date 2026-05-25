@@ -20,6 +20,19 @@ def _run(*cmd: str) -> None:
     subprocess.run(cmd, check=True)
 
 
+def _sync_schema_version(version: str) -> None:
+    schema_path = Path("overrides/main.html")
+    if not schema_path.exists():
+        return
+    text = schema_path.read_text()
+    import re
+
+    updated = re.sub(r'"softwareVersion":\s*"[^"]*"', f'"softwareVersion": "{version}"', text)
+    if updated != text:
+        schema_path.write_text(updated)
+        print(f"Updated softwareVersion in {schema_path} to {version}")
+
+
 def _check_clean_tree() -> None:
     result = subprocess.run(["git", "status", "--porcelain"], capture_output=True, text=True, check=True)
     if result.stdout.strip():
@@ -64,6 +77,7 @@ def main() -> None:
     version = pyproject["project"]["version"]
     tag = f"v{version}"
 
+    _sync_schema_version(version)
     _check_clean_tree()
     notes = _check_changelog(version)
     _check_tests()

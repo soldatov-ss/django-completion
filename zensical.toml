@@ -14,6 +14,9 @@ nav = [
   { "API Reference" = "api.md" },
 ]
 
+[project.theme]
+custom_dir = "overrides"
+
 [[project.theme.palette]]
 media = "(prefers-color-scheme: light)"
 scheme = "default"

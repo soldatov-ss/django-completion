@@ -99,3 +99,6 @@ git clone https://github.com/soldatov-ss/django-completion.git
 cd django-completion
 uv sync
 ```
+
+---
+*By [Soldatov Serhii](https://github.com/soldatov-ss) · Last updated: May 2026*

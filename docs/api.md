@@ -136,3 +136,6 @@ Future rules should preserve these constraints:
 - missing or malformed cache data must fail silently in the shell
 - bash and zsh behavior should be covered by shared helper tests
 - shell templates should not duplicate command-context logic
+
+---
+*By [Soldatov Serhii](https://github.com/soldatov-ss) · Last updated: May 2026*

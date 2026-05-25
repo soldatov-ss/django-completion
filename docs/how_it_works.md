@@ -108,3 +108,6 @@ The helper accepts a cache path, shell words, current-word index, and output for
 - removes `~/.local/share/django-completion/` if it is empty
 
 It never touches files outside the managed path.
+
+---
+*By [Soldatov Serhii](https://github.com/soldatov-ss) · Last updated: May 2026*
