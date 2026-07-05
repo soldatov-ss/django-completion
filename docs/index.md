@@ -1,17 +1,21 @@
 # django-completion
 
-**django-completion** adds project-aware tab completion to Django's `manage.py`. It completes command names, app labels, option flags, and migration targets in bash and zsh — reading a local JSON cache so Tab never imports Django or touches the database.
+**django-completion** adds project-aware tab completion to Django's `manage.py`. It completes your project's own management commands and their flags — plus app labels, migration targets, and everything Django ships with — in bash and zsh, reading a local JSON cache so Tab never imports Django or touches the database.
 
 ```bash
-$ python manage.py migrate <TAB>
-accounts  billing  blog
+$ python manage.py imp<TAB>
+import_articles
+
+$ python manage.py import_articles --<TAB>
+--dry-run  --limit  --since  --source
 
 $ python manage.py migrate accounts <TAB>
 0001_initial  0002_add_profile  zero
-
-$ python manage.py runserver --<TAB>
---addrport  --ipv6  --noreload  --nothreading
 ```
+
+On a project with dozens of custom management commands, nobody remembers every name and argument signature. The completion cache is built from your project at runtime, so custom commands complete the same way Django's built-ins do — names, flags, and help descriptions included.
+
+> **Note:** this is the pip-installable, project-aware tool. The `django-completion` Homebrew formula is an unrelated static bash completion script.
 
 ## Getting started
 
@@ -32,11 +36,11 @@ $ python manage.py runserver --<TAB>
 | OS | Linux and macOS expected |
 | Windows | not officially supported; WSL with bash/zsh may work |
 | Invocations | `manage.py`, `python manage.py`, `python3 manage.py`, `python ./manage.py`, `uv run python manage.py` |
-| Completion depth | commands, app labels, options, migrate app labels, migration names |
+| Completion depth | commands (including custom), option flags, app labels, migrate app labels, migration names |
 
 ## How it works
 
-django-completion writes a JSON cache (`.django-completion-cache.json`) to your project root when you run `autocomplete install`, then refreshes it in a background thread after each `manage.py` command. When you press Tab, a shell script reads that file — no Python import, no Django startup, no database query. The cache holds management command names, app labels with their pip-or-local origin, option flags per command, and migration file names discovered on disk. Completion stays current without making Tab slow.
+django-completion writes a JSON cache (`.django-completion-cache.json`) to your project root when you run `autocomplete install`, then refreshes it in a background thread after each `manage.py` command. When you press Tab, a shell script reads that file — no Python import, no Django startup, no database query. The cache holds management command names (including your project's custom commands), app labels with their pip-or-local origin, option flags per command introspected from each command's argparse parser, and migration file names discovered on disk. Completion stays current without making Tab slow.
 
 ## Why not Django's built-in?
 

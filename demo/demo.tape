@@ -33,7 +33,21 @@ Show
 
 Sleep 400ms
 
-# Beat 1 — migrate app labels (local apps first, only apps with migrations)
+# Beat 1 — custom management command: name completes, then its introspected flags
+Type "python manage.py imp"
+Tab
+Sleep 1500ms
+Type "--"
+Tab
+Sleep 3500ms
+Ctrl+C
+
+Hide
+Type "clear" Enter
+Sleep 200ms
+Show
+
+# Beat 2 — migrate app labels (local apps first, only apps with migrations)
 Type "python manage.py migrate "
 Tab
 Sleep 2500ms
@@ -44,18 +58,7 @@ Type "clear" Enter
 Sleep 200ms
 Show
 
-# Beat 2 — migration names for a specific app
+# Beat 3 — migration names for a specific app
 Type "python manage.py migrate accounts "
 Tab
 Sleep 4500ms
-Ctrl+C
-
-Hide
-Type "clear" Enter
-Sleep 200ms
-Show
-
-# Beat 3 — option completion
-Type "python manage.py runserver --"
-Tab
-Sleep 3000ms

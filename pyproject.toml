@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "django-completion"
-version = "0.2.11"
+version = "0.2.12"
 description = "Tab completion for Django's manage.py — commands, app labels, options, and migration targets in bash and zsh"
 readme = "README.md"
 authors = [

@@ -2,17 +2,18 @@
 
 ## What this folder is
 
-A minimal Django project used exclusively to record the README demo GIF. It has three local apps — `accounts`, `billing`, `blog` — with realistic migrations, plus `django_completion` in `INSTALLED_APPS`. It uses the same venv as the main project (`../.venv`).
+A minimal Django project used exclusively to record the README demo GIF. It has three local apps — `accounts`, `billing`, `blog` — with realistic migrations and a custom management command (`blog/management/commands/import_articles.py`), plus `django_completion` in `INSTALLED_APPS`. It uses the same venv as the main project (`../.venv`).
 
 ## What the GIF shows
 
-Three beats, total ~11 seconds, dark terminal, zsh shell with descriptions.
+Three beats, total ~15 seconds, dark terminal, zsh shell with descriptions.
 
-**Beat 1 — commands (~1.5s)**
+**Beat 1 — custom management command (~5s)**
 ```
-$ python manage.py <TAB>
+$ python manage.py imp<TAB>        → completes to import_articles
+$ python manage.py import_articles --<TAB>
 ```
-→ Shows the full command grid (31 commands). Establishes that the library knows your whole project.
+→ Shows the command's introspected flags with descriptions: `--dry-run`, `--limit`, `--since`, `--source` alongside Django's standard flags. This is the hook — Tab knows your project's own commands and their argument signatures.
 
 **Beat 2 — migrate app labels (~2.5s)**
 ```
@@ -20,11 +21,11 @@ $ python manage.py migrate <TAB>
 ```
 → Shows `accounts [local]`, `billing [local]`, `blog [local]`, then `auth [pip]`, `contenttypes [pip]`. Local apps appear first.
 
-**Beat 3 — migration names (~3.5s)**
+**Beat 3 — migration names (~4.5s)**
 ```
 $ python manage.py migrate accounts <TAB>
 ```
-→ Shows `0001_initial`, `0002_add_profile`, `zero`. This is the hook — nobody else does this.
+→ Shows `0001_initial`, `0002_add_profile`, `zero`.
 
 ## Step-by-step to record
 
@@ -89,11 +90,11 @@ The tape (`demo.tape`) has a hidden setup section and a visible recording sectio
 7. Clears the screen.
 
 **Visible section (in GIF):**
-- Beat 1: types `python manage.py `, presses Tab, waits 1.5s, Ctrl+C.
+- Beat 1: types `python manage.py imp`, presses Tab (completes to `import_articles `), types `--`, presses Tab, waits 3.5s, Ctrl+C.
 - Screen cleared (hidden).
 - Beat 2: types `python manage.py migrate `, presses Tab, waits 2.5s, Ctrl+C.
 - Screen cleared (hidden).
-- Beat 3: types `python manage.py migrate accounts `, presses Tab, waits 3.5s, ends.
+- Beat 3: types `python manage.py migrate accounts `, presses Tab, waits 4.5s, ends.
 
 ---
 

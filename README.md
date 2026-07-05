@@ -7,11 +7,13 @@
 
 Project-aware **tab completion** for Django's `manage.py`.
 
-Press Tab to complete commands, app labels, options, and migration targets — in bash and zsh — from your actual Django project.
+Press Tab to complete your project's own management commands and their flags — plus app labels and migration targets — in bash and zsh. On a project with dozens of custom commands, nobody remembers every name and argument signature; django-completion introspects them from your actual project.
 
 ![django-completion demo](https://raw.githubusercontent.com/soldatov-ss/django-completion/main/demo.gif)
 
 ## Installation
+
+> **Note:** this is the pip-installable, project-aware tool. The `django-completion` Homebrew formula is an unrelated static bash completion script.
 
 Install it in the same environment as your Django project:
 
@@ -45,6 +47,13 @@ source ~/.zshrc    # zsh
 
 ## What Completes
 
+The completion cache is built from your project at runtime, so it covers your custom management commands the same way it covers Django's built-ins:
+
+```bash
+python manage.py imp<TAB>                    # → import_articles
+python manage.py import_articles --<TAB>     # → --dry-run  --limit  --since  --source  ...
+```
+
 Supported invocation styles:
 
 ```bash
@@ -57,11 +66,12 @@ uv run python manage.py <TAB>
 
 Completion depth:
 
-- command names after `manage.py`
-- option flags for all commands; app labels for `migrate`, `check`, `dumpdata`, `test`, and `makemigrations`
+- command names after `manage.py` — built-in, third-party, and your project's custom commands
+- option flags for every command, introspected from each command's actual argparse parser
+- app labels for `migrate`, `check`, `dumpdata`, `test`, and `makemigrations`
 - `migrate` app labels filtered to apps that have migrations
 - migration names and `zero` after `python manage.py migrate app_label`
-- option descriptions in zsh where available
+- command and option descriptions in zsh where available
 
 Django's built-in completion covers command names and option flags — it has no knowledge of your app labels, migration names, or project-specific targets. django-completion fills that gap. See [comparison with Django's built-in completion](https://soldatov-ss.github.io/django-completion/comparison/) for a full feature breakdown.
 
@@ -92,7 +102,7 @@ DJANGO_COMPLETION_AUTO_REFRESH = False
 | OS | Linux and macOS expected |
 | Windows | not officially supported; WSL with bash/zsh may work |
 | Invocations | `manage.py`, `python manage.py`, `python3 manage.py`, `python ./manage.py`, `uv run python manage.py` |
-| Completion depth | commands, app labels, options, migrate app labels, migration names |
+| Completion depth | commands (including custom), option flags, app labels, migrate app labels, migration names |
 
 ## Safety and Privacy
 
