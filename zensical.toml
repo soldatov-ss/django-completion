@@ -10,6 +10,7 @@ nav = [
   { "Comparison" = "comparison.md" },
   { "Usage" = "usage.md" },
   { "How it works" = "how_it_works.md" },
+  { "For AI agents" = "agents.md" },
   { "Troubleshooting" = "troubleshooting.md" },
   { "API Reference" = "api.md" },
 ]

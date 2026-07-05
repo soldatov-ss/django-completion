@@ -12,6 +12,7 @@ def test_build_cache_structure():
     assert data["schema_version"] == 2
     assert "commands" in data
     assert "app_labels" in data
+    assert "command_apps" in data
     assert "command_help" in data
     assert "command_options" in data
     assert "command_option_descriptions" in data
@@ -44,6 +45,22 @@ def test_build_cache_app_labels_local_first(settings, tmp_path):
     data = build_cache()
     origins = [entry["origin"] for entry in data["app_labels"]]
     assert origins == sorted(origins, key=lambda origin: origin != "local")
+
+
+@pytest.mark.django_db
+def test_build_cache_command_apps_covers_every_command():
+    data = build_cache()
+    assert set(data["command_apps"]) == set(data["commands"])
+
+
+@pytest.mark.django_db
+def test_build_cache_command_apps_uses_app_labels():
+    data = build_cache()
+    # Django built-ins are not provided by an app config and stay "django.core".
+    assert data["command_apps"]["migrate"] == "django.core"
+    # App-provided commands map to the app *label*, joinable against app_labels.
+    assert data["command_apps"]["autocomplete"] == "django_completion"
+    assert "django_completion" in {entry["label"] for entry in data["app_labels"]}
 
 
 @pytest.mark.django_db

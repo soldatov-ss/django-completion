@@ -236,6 +236,7 @@ def test_zsh_migration_names_have_empty_descriptions():
 
 def test_autocomplete_completes_subcommands():
     assert complete(_cache(), ["manage.py", "autocomplete", ""], 2) == [
+        "context",
         "install",
         "refresh",
         "status",
@@ -505,6 +506,13 @@ def test_autocomplete_refresh_dash_returns_empty():
     # refresh has no subcommand-specific options; fall back to empty
     result = complete(_cache(), ["manage.py", "autocomplete", "refresh", "--"], 3)
     assert result == []
+
+
+def test_autocomplete_context_dash_completes_json_and_refresh():
+    result = complete(_cache(), ["manage.py", "autocomplete", "context", "--"], 3)
+    assert "--json" in result
+    assert "--refresh" in result
+    assert "--verbose" not in result
 
 
 # --- 0.2.8-3: command rule registry ---

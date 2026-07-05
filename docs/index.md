@@ -22,9 +22,10 @@ On a project with dozens of custom management commands, nobody remembers every n
 1. [Installation](installation.md) — install the package and set up shell completion
 2. [Usage](usage.md) — completion behavior, subcommands, and auto-refresh
 3. [How it works](how_it_works.md) — cache, shell hooks, helper process, and refresh lifecycle
-4. [Troubleshooting](troubleshooting.md) — common problems and fixes
-5. [API Reference](api.md) — supported commands, cache schema, and compatibility notes
-6. [Comparison with Django's built-in completion](comparison.md) — feature-by-feature breakdown
+4. [For AI agents](agents.md) — the cache as a machine-readable project summary, `autocomplete context`, schema contract
+5. [Troubleshooting](troubleshooting.md) — common problems and fixes
+6. [API Reference](api.md) — supported commands, cache schema, and compatibility notes
+7. [Comparison with Django's built-in completion](comparison.md) — feature-by-feature breakdown
 
 ## Compatibility
 
@@ -53,4 +54,4 @@ See [Comparison with Django's built-in completion](comparison.md) for the full f
 Django can suggest close command names after an error. django-completion prevents many of those errors by completing project-specific commands, app labels, options, and migration targets before you press Enter.
 
 ---
-*By [Soldatov Serhii](https://github.com/soldatov-ss) · Last updated: May 2026*
+*By [Soldatov Serhii](https://github.com/soldatov-ss) · Last updated: July 2026*

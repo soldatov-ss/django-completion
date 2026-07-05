@@ -161,6 +161,11 @@ def _autocomplete_option_candidates(words: list[str], manage_idx: int, pos: int)
         return [("--verbose", "Show full diagnostic details")]
     if pos == 3 and subcmd == "install":
         return [("--shell", "Target shell (bash or zsh)")]
+    if pos == 3 and subcmd == "context":
+        return [
+            ("--json", "Print the full cache as JSON instead of markdown"),
+            ("--refresh", "Force a cache rebuild before printing"),
+        ]
     return []
 
 
@@ -175,7 +180,7 @@ def _positional_candidates(
     """Return candidates for a non-dash positional argument after the command is known."""
     if cmd == "autocomplete":
         if pos == 2:
-            subcommands = [("install", ""), ("refresh", ""), ("status", ""), ("uninstall", "")]
+            subcommands = [("context", ""), ("install", ""), ("refresh", ""), ("status", ""), ("uninstall", "")]
             return _format_candidates(subcommands, fmt)
         # autocomplete install --shell <TAB> at pos 4
         subcmd = words[manage_idx + 2] if manage_idx + 2 < len(words) else None

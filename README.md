@@ -75,12 +75,28 @@ Completion depth:
 
 Django's built-in completion covers command names and option flags — it has no knowledge of your app labels, migration names, or project-specific targets. django-completion fills that gap. See [comparison with Django's built-in completion](https://soldatov-ss.github.io/django-completion/comparison/) for a full feature breakdown.
 
+## For AI agents
+
+The same cache that powers Tab completion gives coding agents every command, its flags, and all migration names — readable straight from `.django-completion-cache.json` with no Django boot at all, or via `python manage.py autocomplete context` for a compact markdown summary (one Django boot instead of a `--help` subprocess per command; `--json` prints the full cache). Add this to your project's `AGENTS.md` or `CLAUDE.md`:
+
+```markdown
+## Django management commands
+This project maintains `.django-completion-cache.json` (django-completion).
+Read it — or run `python manage.py autocomplete context` — instead of running
+`manage.py help` or grepping management/commands/. It lists every command,
+its flags with descriptions, and all migration names, and refreshes
+automatically after each manage.py run.
+```
+
+See [For AI agents](https://soldatov-ss.github.io/django-completion/agents/) for the output format, the cache schema, and its stability policy.
+
 ## Commands
 
 ```bash
 python manage.py autocomplete status
 python manage.py autocomplete status --verbose
 python manage.py autocomplete refresh
+python manage.py autocomplete context
 python manage.py autocomplete uninstall
 ```
 
@@ -112,7 +128,7 @@ DJANGO_COMPLETION_AUTO_REFRESH = False
 - Tab completion does not import Django.
 - Tab completion does not touch the database.
 - The cache is local runtime state in the project root.
-- The cache contains command names, app labels, option names/help, migration names, warnings, and timestamps.
+- The cache contains command names, their providing apps, app labels, option names/help, migration names, warnings, and timestamps.
 - Shell rc edits are marker-delimited and reversible.
 - `autocomplete uninstall` removes managed shell hooks and managed scripts.
 - The package has no middleware, models, migrations, or request-time behavior.

@@ -1,10 +1,11 @@
 from io import StringIO
+import json
 
 from django.core.management import call_command
 from django.core.management.base import CommandError
 import pytest
 
-from django_completion.management.commands.autocomplete import _format_delta
+from django_completion.management.commands.autocomplete import _format_delta, _render_context
 
 
 @pytest.mark.django_db
@@ -183,3 +184,141 @@ def test_refresh_output_no_warning_suffix_when_no_warnings(tmp_path, monkeypatch
     call_command("autocomplete", "refresh", stdout=out)
 
     assert "warning" not in out.getvalue().lower()
+
+
+# --- 0.3.0: autocomplete context ---
+
+
+def _context_cache():
+    return {
+        "schema_version": 2,
+        "commands": ["check", "import_articles", "migrate"],
+        "app_labels": [
+            {"label": "blog", "origin": "local"},
+            {"label": "auth", "origin": "pip"},
+        ],
+        "command_apps": {"check": "django.core", "import_articles": "blog", "migrate": "django.core"},
+        "command_help": {"check": "", "import_articles": "Import articles from a feed.", "migrate": ""},
+        "command_options": {
+            "check": [],
+            "import_articles": ["--dry-run", "--help", "--limit", "--settings", "--verbosity", "-h", "-v"],
+            "migrate": ["--fake"],
+        },
+        "command_option_descriptions": {},
+        "migrations": {"blog": ["0001_initial", "0002_add_slug"]},
+        "warnings": [],
+        "generated_at": 1751000000.0,
+    }
+
+
+def test_render_context_local_command_with_help_and_own_flags():
+    out = _render_context(_context_cache())
+    assert "- import_articles — Import articles from a feed." in out
+    assert "--dry-run" in out
+    assert "--limit" in out
+
+
+def test_render_context_strips_global_flags():
+    out = _render_context(_context_cache())
+    assert "--settings" not in out
+    assert "--verbosity" not in out
+
+
+def test_render_context_sections_and_classification():
+    out = _render_context(_context_cache())
+    assert out.startswith("# manage.py — 3 commands")
+    assert "## Project commands [local]" in out
+    assert "- blog: 0001_initial, 0002_add_slug" in out
+    # built-ins land in the compact section, not under project commands
+    local_section = out.split("## Migrations on disk")[0]
+    assert "migrate" not in local_section
+    assert "check, migrate" in out
+
+
+def test_render_context_empty_sections():
+    cache = _context_cache()
+    cache["app_labels"] = [{"label": "auth", "origin": "pip"}]
+    cache["migrations"] = {}
+    out = _render_context(cache)
+    assert out.count("(none found)") == 2
+
+
+@pytest.mark.django_db
+def test_context_json_round_trips(tmp_path, monkeypatch):
+    monkeypatch.setattr("django_completion.cache.CACHE_FILENAME", str(tmp_path / "cache.json"))
+
+    out = StringIO()
+    call_command("autocomplete", "context", "--json", stdout=out)
+    data = json.loads(out.getvalue())
+
+    assert data["schema_version"] == 2
+    assert data["command_apps"]["migrate"] == "django.core"
+
+
+@pytest.mark.django_db
+def test_context_markdown_output(tmp_path, monkeypatch):
+    monkeypatch.setattr("django_completion.cache.CACHE_FILENAME", str(tmp_path / "cache.json"))
+
+    out = StringIO()
+    call_command("autocomplete", "context", stdout=out)
+    output = out.getvalue()
+
+    assert output.startswith("# manage.py — ")
+    assert "## Project commands [local]" in output
+    assert "## Migrations on disk" in output
+    assert "## Built-in and third-party commands" in output
+    assert "migrate" in output
+
+
+@pytest.mark.django_db
+def test_context_respects_cooldown_and_refresh_flag(tmp_path, monkeypatch):
+    cache_path = tmp_path / "cache.json"
+    monkeypatch.setattr("django_completion.cache.CACHE_FILENAME", str(cache_path))
+    call_command("autocomplete", "refresh", stdout=StringIO())
+    first = json.loads(cache_path.read_text())["generated_at"]
+
+    # Fresh cache within the cooldown — context must not rewrite it.
+    call_command("autocomplete", "context", stdout=StringIO())
+    assert json.loads(cache_path.read_text())["generated_at"] == first
+
+    call_command("autocomplete", "context", "--refresh", stdout=StringIO())
+    assert json.loads(cache_path.read_text())["generated_at"] > first
+
+
+@pytest.mark.django_db
+def test_context_rebuilds_cache_missing_command_apps(tmp_path, monkeypatch):
+    """A fresh pre-0.3.0 cache (no command_apps) is rebuilt rather than misclassified."""
+    import time
+
+    cache_path = tmp_path / "cache.json"
+    monkeypatch.setattr("django_completion.cache.CACHE_FILENAME", str(cache_path))
+    old = _context_cache()
+    del old["command_apps"]
+    old["generated_at"] = time.time()
+    cache_path.write_text(json.dumps(old))
+
+    out = StringIO()
+    call_command("autocomplete", "context", "--json", stdout=out)
+
+    assert "command_apps" in json.loads(out.getvalue())
+    assert "command_apps" in json.loads(cache_path.read_text())
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("field", ["commands", "migrations", "command_apps", "generated_at"])
+def test_context_rebuilds_hand_edited_cache_with_null_field(tmp_path, monkeypatch, field):
+    """Valid JSON with a field nulled out is rebuilt, not a traceback."""
+    import time
+
+    cache_path = tmp_path / "cache.json"
+    monkeypatch.setattr("django_completion.cache.CACHE_FILENAME", str(cache_path))
+    broken = _context_cache()
+    broken["generated_at"] = time.time()
+    broken[field] = None
+    cache_path.write_text(json.dumps(broken))
+
+    out = StringIO()
+    call_command("autocomplete", "context", stdout=out)
+
+    assert out.getvalue().startswith("# manage.py — ")
+    assert json.loads(cache_path.read_text())[field] is not None

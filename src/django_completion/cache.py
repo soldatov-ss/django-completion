@@ -22,6 +22,7 @@ class CacheData(TypedDict):
     schema_version: int
     commands: list[str]
     app_labels: list[AppLabelEntry]
+    command_apps: dict[str, str]
     command_help: dict[str, str]
     command_options: dict[str, list[str]]
     command_option_descriptions: dict[str, dict[str, str]]
@@ -148,6 +149,11 @@ def build_cache() -> CacheData:
     app_labels: list[AppLabelEntry] = [{"label": cfg.label, "origin": classify_app(cfg)} for cfg in app_configs]
     app_labels.sort(key=lambda entry: (entry["origin"] != "local", entry["label"]))
 
+    # get_commands() maps command -> app *name* (dotted path); expose app *labels*
+    # so consumers can join against app_labels. Django built-ins stay "django.core".
+    name_to_label = {cfg.name: cfg.label for cfg in app_configs}
+    command_apps = {cmd: name_to_label.get(app_name, app_name) for cmd, app_name in sorted(commands_map.items())}
+
     migration_modules = getattr(settings, "MIGRATION_MODULES", {}) or {}
     migrations, migration_warnings = _discover_migrations(app_configs, migration_modules)
 
@@ -157,6 +163,7 @@ def build_cache() -> CacheData:
         "schema_version": 2,
         "commands": command_names,
         "app_labels": app_labels,
+        "command_apps": command_apps,
         "command_help": command_help,
         "command_options": command_options,
         "command_option_descriptions": command_option_descriptions,
