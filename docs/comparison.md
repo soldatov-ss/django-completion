@@ -29,6 +29,7 @@ The built-in mechanism is generic — it reads argparse metadata at completion t
 |---|---|---|
 | Command names after `manage.py` | Yes | Yes |
 | Option flags | Yes | Yes |
+| Tab completion without importing Django | No | Yes |
 | App labels (from `INSTALLED_APPS`) | No | Yes |
 | `migrate` — only apps that have migrations | No | Yes |
 | `migrate` — migration names after app label | No | Yes |
@@ -46,7 +47,7 @@ The built-in mechanism is generic — it reads argparse metadata at completion t
 
 **Use Django's built-in** if you only need command-name and flag completion and prefer zero additional dependencies. It works out of the box on many Linux systems where the bash-completion package is installed.
 
-**Use django-completion** if you work with migrations regularly, manage many apps, or want zsh support with descriptions. The install is one command and the cache refreshes automatically.
+**Use django-completion** if your project carries its own set of custom management commands — the cache is built from your project, so their names, flags, and help descriptions complete without loading Django on each Tab press. The same applies if you work with migrations regularly, manage many apps, or want zsh support with descriptions. The install is one command and the cache refreshes automatically.
 
 **Both can coexist.** django-completion's shell hook activates when a `.django-completion-cache.json` is found in the project directory. For `django-admin` (which django-completion does not support), Django's built-in completion continues to apply.
 
