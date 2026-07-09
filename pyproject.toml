@@ -5,7 +5,7 @@ build-backend = "hatchling.build"
 [project]
 name = "django-completion"
 version = "0.3.0"
-description = "Tab completion for Django's manage.py — commands, app labels, options, and migration targets in bash and zsh"
+description = "Django manage.py context for coding agents + project-aware tab completion — commands, flags, app labels, and migration targets from one cache"
 readme = "README.md"
 authors = [
   {name = "Soldatov Serhii", email = "soldatov.own@gmail.com"}
@@ -40,6 +40,8 @@ keywords = [
     "django", "manage.py", "tab-completion", "autocomplete", "completion",
     "bash", "zsh", "bash-completion", "zsh-completion", "shell", "cli",
     "developer-tools", "productivity", "migration",
+    "ai", "agents", "coding-agents", "llm", "claude", "cursor", "copilot",
+    "agents-md", "context",
 ]
 license = {text = "MIT"}
 license-files = ["LICENSE"]
