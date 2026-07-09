@@ -114,7 +114,7 @@ python manage.py autocomplete uninstall
 
 ### `autocomplete context`
 
-Prints a compact project summary for coding agents — project-local commands with their flags and help text first, then migration names per app, then the remaining commands on one line.
+Prints a compact project summary for coding agents — project-local commands with their flags and help text first, then migration names per local app, then the remaining commands on one line. `--json` includes all apps' migrations.
 
 ```bash
 python manage.py autocomplete context
@@ -135,7 +135,7 @@ To disable auto-refresh and manage the cache manually:
 DJANGO_COMPLETION_AUTO_REFRESH = False
 ```
 
-When disabled, `autocomplete refresh` still works normally.
+When disabled, `autocomplete refresh` still works normally. `autocomplete context` still rebuilds a missing or stale cache in memory for its own output, but only writes it to disk when you pass `--refresh`.
 
 ## Known limits
 

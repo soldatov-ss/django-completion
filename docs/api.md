@@ -62,7 +62,7 @@ python manage.py autocomplete context --json
 python manage.py autocomplete context --refresh
 ```
 
-Prints a compact project summary for coding agents: project-local commands with their non-global flags and help text, migration names per app, and a one-line list of the remaining commands. `--json` prints the full cache instead; `--refresh` forces a rebuild first. Rebuilds automatically when the cache is missing or stale. See [For AI agents](agents.md).
+Prints a compact project summary for coding agents: project-local commands with their non-global flags and help text, migration names per local app, and a one-line list of the remaining commands. `--json` prints the full cache instead (including all apps' migrations); `--refresh` forces a rebuild first. Rebuilds automatically when the cache is missing or stale. See [For AI agents](agents.md).
 
 ## Settings
 
@@ -76,7 +76,7 @@ When enabled, django-completion refreshes the cache in a background thread after
 DJANGO_COMPLETION_AUTO_REFRESH = False
 ```
 
-Manual `autocomplete refresh` still works when auto-refresh is disabled.
+Manual `autocomplete refresh` still works when auto-refresh is disabled. Disabling it also stops `autocomplete context` from writing its automatic rebuild of a missing or stale cache back to disk — pass `context --refresh` (or run `autocomplete refresh`/`install`) to persist explicitly.
 
 ## Cache schema
 

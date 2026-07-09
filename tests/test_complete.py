@@ -515,6 +515,12 @@ def test_autocomplete_context_dash_completes_json_and_refresh():
     assert "--verbose" not in result
 
 
+def test_autocomplete_context_second_flag_still_completes():
+    """A second flag after the first (pos 4, not just pos 3) must still complete."""
+    result = complete(_cache(), ["manage.py", "autocomplete", "context", "--json", "--"], 4)
+    assert "--refresh" in result
+
+
 # --- 0.2.8-3: command rule registry ---
 
 

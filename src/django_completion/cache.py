@@ -188,8 +188,25 @@ def read_cache(path: Path | None = None) -> dict | None:
         return None
 
 
+# datetime.fromtimestamp raises past year 9999; anything outside (0, this) is corrupt.
+_MAX_TIMESTAMP = 253402300800
+
+
+def sane_generated_at(cache: dict) -> float | None:
+    """Return generated_at as a usable Unix timestamp, or None when missing or corrupt.
+
+    Hand-edited caches can hold any JSON value here — NaN, Infinity, huge ints,
+    strings — none of which may reach arithmetic or datetime.fromtimestamp.
+    """
+    ts = cache.get("generated_at")
+    if isinstance(ts, int | float) and 0 < ts < _MAX_TIMESTAMP:
+        return float(ts)
+    return None
+
+
 def is_stale(cache: dict, cooldown_seconds: int = COOLDOWN_SECONDS) -> bool:
-    return (time.time() - cache.get("generated_at", 0)) > cooldown_seconds
+    ts = sane_generated_at(cache)
+    return ts is None or (time.time() - ts) > cooldown_seconds
 
 
 def maybe_refresh_cache() -> bool:

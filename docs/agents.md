@@ -10,7 +10,7 @@ An agent working in a Django repo without it typically discovers commands by run
 python manage.py autocomplete context
 ```
 
-Prints a compact markdown summary: your project's own commands first with their non-global flags and help text, migration names per app, and a one-line list of built-in and third-party commands. Typical output fits well within an agent's working context:
+Prints a compact markdown summary: your project's own commands first with their non-global flags and help text, migration names per local app, and a one-line list of built-in and third-party commands (`--json` includes all apps' migrations). Typical output fits well within an agent's working context:
 
 ```markdown
 # manage.py — 32 commands (cache generated 2026-07-05 16:40:15 UTC)
@@ -19,7 +19,7 @@ Prints a compact markdown summary: your project's own commands first with their 
 - import_articles — Import articles from an external feed into the blog.
     --dry-run  --limit  --since  --source
 
-## Migrations on disk
+## Migrations on disk [local]
 - accounts: 0001_initial, 0002_add_profile
 - billing: 0001_initial, 0002_add_subscription
 - blog: 0001_initial, 0002_add_slug, 0003_add_published_at
@@ -34,7 +34,7 @@ Flags:
 - `--json` — print the full cache as JSON (all commands with flags and descriptions), for agents that want everything in one call
 - `--refresh` — force a cache rebuild first, ignoring the 60-second cooldown
 
-`context` reads the cache and rebuilds it automatically when it is missing or stale, so it is always safe to call.
+`context` always renders current data: it rebuilds in memory when the cache is missing or stale, so it is always safe to call. That rebuild is written back to disk unless `DJANGO_COMPLETION_AUTO_REFRESH = False` is set, in which case pass `--refresh` to persist it explicitly.
 
 ## Context-file snippet
 
@@ -57,20 +57,7 @@ Reading the file directly is cheaper than `context` when Django startup cost mat
 
 ### Schema
 
-The full field-by-field schema with a JSON example is in the [API Reference](api.md#cache-schema). Summary:
-
-| Field | Type | Contents |
-|---|---|---|
-| `schema_version` | int | `2` for this release line |
-| `commands` | list[str] | every management command name, sorted |
-| `app_labels` | list[dict] | `{"label", "origin"}` per app; `origin` is `"local"` or `"pip"`, local apps first |
-| `command_apps` | dict[str, str] | command name → label of the app providing it; Django built-ins appear as `"django.core"` |
-| `command_help` | dict[str, str] | command name → help text |
-| `command_options` | dict[str, list[str]] | command name → sorted option flags |
-| `command_option_descriptions` | dict[str, dict[str, str]] | command name → flag → description |
-| `migrations` | dict[str, list[str]] | app label → migration names on disk (no `.py` suffix) |
-| `warnings` | list[str] | informational inspection warnings |
-| `generated_at` | float | Unix timestamp of the last rebuild |
+The full field-by-field schema with a JSON example is in the [API Reference](api.md#cache-schema).
 
 To classify a command as project-local, look up its app in `command_apps` and check that app's `origin` in `app_labels`.
 
@@ -84,7 +71,7 @@ The cache file format is a documented contract:
 
 ## Freshness semantics
 
-- The cache refreshes in a background thread after every `manage.py` command, with a 60-second cooldown.
+- The cache refreshes in a background thread after every `manage.py` command, with a 60-second cooldown — unless `DJANGO_COMPLETION_AUTO_REFRESH = False` is set, in which case only the explicit commands (`autocomplete refresh`, `context --refresh`, `install`) write it.
 - It can be stale if code changed without any `manage.py` run since — a just-added command or migration file may be missing.
 - `python manage.py autocomplete refresh` (or `context --refresh`) forces a rebuild.
 - `generated_at` tells you how old the snapshot is.

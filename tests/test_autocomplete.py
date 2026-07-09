@@ -322,3 +322,174 @@ def test_context_rebuilds_hand_edited_cache_with_null_field(tmp_path, monkeypatc
 
     assert out.getvalue().startswith("# manage.py — ")
     assert json.loads(cache_path.read_text())[field] is not None
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("app_labels", ["blog"]),
+        ("migrations", {"blog": None}),
+        ("command_options", {"import_articles": None}),
+        ("command_apps", {"import_articles": None}),
+        ("command_help", {"import_articles": None}),
+        ("commands", [None]),
+    ],
+    ids=[
+        "app_labels-str-entries",
+        "migrations-null-value",
+        "command_options-null-value",
+        "command_apps-null-value",
+        "command_help-null-value",
+        "commands-null-entry",
+    ],
+)
+def test_context_rebuilds_cache_with_element_level_corruption(tmp_path, monkeypatch, field, value):
+    """A container of the right type but wrong-typed elements is rebuilt, not a traceback."""
+    import time
+
+    cache_path = tmp_path / "cache.json"
+    monkeypatch.setattr("django_completion.cache.CACHE_FILENAME", str(cache_path))
+    broken = _context_cache()
+    broken["generated_at"] = time.time()
+    broken[field] = value
+    cache_path.write_text(json.dumps(broken))
+
+    out = StringIO()
+    call_command("autocomplete", "context", stdout=out)
+
+    assert out.getvalue().startswith("# manage.py — ")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("raw", ["[]", '"hi"', "42"])
+def test_context_rebuilds_when_cache_file_is_not_a_json_object(tmp_path, monkeypatch, raw):
+    """Valid JSON that isn't even an object (list/string/number) is rebuilt, not a traceback."""
+    cache_path = tmp_path / "cache.json"
+    monkeypatch.setattr("django_completion.cache.CACHE_FILENAME", str(cache_path))
+    cache_path.write_text(raw)
+
+    out = StringIO()
+    call_command("autocomplete", "context", stdout=out)
+
+    assert out.getvalue().startswith("# manage.py — ")
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "literal",
+    ["NaN", "Infinity", "-Infinity", "1" + "0" * 400, "1751976000000", "-1"],
+    ids=["nan", "inf", "-inf", "huge-int", "ms-epoch", "negative"],
+)
+def test_context_rebuilds_when_generated_at_is_unusable(tmp_path, monkeypatch, literal):
+    """Non-finite or out-of-range timestamps must not reach arithmetic or fromtimestamp."""
+    import re
+    import time
+
+    cache_path = tmp_path / "cache.json"
+    monkeypatch.setattr("django_completion.cache.CACHE_FILENAME", str(cache_path))
+    broken = _context_cache()
+    text = re.sub(r'"generated_at":\s*[0-9.]+', f'"generated_at": {literal}', json.dumps(broken))
+    cache_path.write_text(text)
+
+    out = StringIO()
+    call_command("autocomplete", "context", stdout=out)
+
+    assert out.getvalue().startswith("# manage.py — ")
+    new_generated_at = json.loads(cache_path.read_text())["generated_at"]
+    assert new_generated_at > time.time() - 60
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("literal", ["NaN", "1" + "0" * 400], ids=["nan", "huge-int"])
+def test_status_survives_corrupt_generated_at(tmp_path, monkeypatch, literal):
+    """status reads the cache without the context gate; corrupt timestamps must not crash it."""
+    cache_path = tmp_path / "cache.json"
+    monkeypatch.setattr("django_completion.cache.CACHE_FILENAME", str(cache_path))
+    cache_path.write_text(
+        f'{{"generated_at": {literal}, "commands": [], "app_labels": [], "migrations": {{}}, "warnings": []}}'
+    )
+
+    call_command("autocomplete", "status", stdout=StringIO())
+
+    out = StringIO()
+    call_command("autocomplete", "status", "--verbose", stdout=out)
+    assert "Generated: unknown" in out.getvalue()
+
+
+@pytest.mark.django_db
+def test_context_survives_permission_error_on_write(tmp_path, monkeypatch):
+    """A read-only cache directory must not crash context — it still prints the freshly built summary."""
+    cache_path = tmp_path / "cache.json"
+    monkeypatch.setattr("django_completion.cache.CACHE_FILENAME", str(cache_path))
+
+    def _raise(*args, **kwargs):
+        raise PermissionError("read-only filesystem")
+
+    monkeypatch.setattr("django_completion.cache.write_cache", _raise)
+
+    out = StringIO()
+    err = StringIO()
+    call_command("autocomplete", "context", stdout=out, stderr=err)
+
+    assert out.getvalue().startswith("# manage.py — ")
+    assert "cache not written" in err.getvalue()
+
+
+@pytest.mark.django_db
+def test_context_does_not_write_when_auto_refresh_disabled(tmp_path, monkeypatch, settings):
+    cache_path = tmp_path / "cache.json"
+    monkeypatch.setattr("django_completion.cache.CACHE_FILENAME", str(cache_path))
+    settings.DJANGO_COMPLETION_AUTO_REFRESH = False
+
+    out = StringIO()
+    call_command("autocomplete", "context", stdout=out)
+
+    assert out.getvalue().startswith("# manage.py — ")
+    assert not cache_path.exists()
+
+
+@pytest.mark.django_db
+def test_context_refresh_flag_writes_even_when_auto_refresh_disabled(tmp_path, monkeypatch, settings):
+    cache_path = tmp_path / "cache.json"
+    monkeypatch.setattr("django_completion.cache.CACHE_FILENAME", str(cache_path))
+    settings.DJANGO_COMPLETION_AUTO_REFRESH = False
+
+    out = StringIO()
+    call_command("autocomplete", "context", "--refresh", stdout=out)
+
+    assert cache_path.exists()
+
+
+@pytest.mark.parametrize(
+    "help_text",
+    ["Import stuff.\n\n## Notes\n- reads FEED_URL", "\nImport stuff.\n"],
+    ids=["multiline", "leading-newline"],
+)
+def test_render_context_uses_first_nonempty_help_line(help_text):
+    cache = _context_cache()
+    cache["command_help"]["import_articles"] = help_text
+    out = _render_context(cache)
+    assert "- import_articles — Import stuff." in out
+    assert "## Notes" not in out
+    assert "reads FEED_URL" not in out
+
+
+def test_render_context_shows_warning_summary():
+    cache = _context_cache()
+    cache["warnings"] = ["Could not inspect command 'broken_cmd': ImportError"]
+    out = _render_context(cache)
+    assert "> 1 warning — run" in out
+
+
+def test_render_context_no_warning_banner_when_clean():
+    out = _render_context(_context_cache())
+    assert "warning" not in out.lower()
+
+
+def test_render_context_migrations_filtered_to_local_apps():
+    cache = _context_cache()
+    cache["migrations"]["auth"] = ["0001_initial"]  # auth is origin "pip" in the fixture
+    out = _render_context(cache)
+    assert "auth:" not in out
+    assert "blog:" in out

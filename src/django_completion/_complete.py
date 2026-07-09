@@ -154,19 +154,24 @@ def _migration_app_label_candidates(cache: _CacheT, fmt: str) -> list[str]:
     return _format_candidates([(label, f"[{origin}]") for label, origin in _migration_app_labels(cache)], fmt)
 
 
-def _autocomplete_option_candidates(words: list[str], manage_idx: int, pos: int) -> list[tuple[str, str]]:
+# Flags for autocomplete subcommands, not captured in the cache. Descriptions
+# are kept in sync with the argparse definitions in management/commands/autocomplete.py.
+_AUTOCOMPLETE_SUBCOMMAND_FLAGS: dict[str, list[tuple[str, str]]] = {
+    "status": [("--verbose", "Show full diagnostic details")],
+    "install": [("--shell", "Target shell (default: auto-detect)")],
+    "context": [
+        ("--json", "Print the full cache as JSON instead of markdown"),
+        ("--refresh", "Force a cache rebuild before printing"),
+    ],
+}
+
+
+def _autocomplete_option_candidates(words: list[str], manage_idx: int) -> list[tuple[str, str]]:
     """Return option candidates for autocomplete subcommands (not captured in cache)."""
     subcmd = words[manage_idx + 2] if manage_idx + 2 < len(words) else None
-    if pos == 3 and subcmd == "status":
-        return [("--verbose", "Show full diagnostic details")]
-    if pos == 3 and subcmd == "install":
-        return [("--shell", "Target shell (bash or zsh)")]
-    if pos == 3 and subcmd == "context":
-        return [
-            ("--json", "Print the full cache as JSON instead of markdown"),
-            ("--refresh", "Force a cache rebuild before printing"),
-        ]
-    return []
+    if not isinstance(subcmd, str):
+        return []
+    return _AUTOCOMPLETE_SUBCOMMAND_FLAGS.get(subcmd, [])
 
 
 def _positional_candidates(
@@ -233,7 +238,7 @@ def complete(cache: _CacheT, words: list[str], cword: int, fmt: str = "bash") ->
     if cur.startswith("-"):
         # autocomplete subcommands have options not captured in the cache.
         if cmd == "autocomplete":
-            return _format_candidates(_autocomplete_option_candidates(words, manage_idx, pos), fmt)
+            return _format_candidates(_autocomplete_option_candidates(words, manage_idx), fmt)
         return _format_candidates(_option_candidates(cache, cmd), fmt)
 
     return _positional_candidates(cache, cmd, pos, words, manage_idx, fmt)
