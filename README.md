@@ -74,11 +74,19 @@ Add this to your project's `AGENTS.md` or `CLAUDE.md`:
 
 ```markdown
 ## Django management commands
-This project maintains `.django-completion-cache.json` (django-completion).
-Read it — or run `python manage.py autocomplete context` — instead of running
-`manage.py help` or grepping management/commands/. It lists every command,
-its flags with descriptions, and all migration names, and refreshes
-automatically after each manage.py run.
+
+Read `.django-completion-cache.json` in the project root. It lists every
+management command (built-in, third-party, and this project's own), every
+flag with its help text, and all migration names — and it auto-refreshes
+after every `manage.py` run, so it is always at least as fresh as `--help`
+output.
+
+- Do NOT run `manage.py help` or `<command> --help` — each invocation boots
+  Django (seconds to minutes on large projects). The cache already has it.
+- Do NOT grep `management/commands/` to discover commands — that misses
+  built-in and third-party ones.
+- First time in this repo? Run `python manage.py autocomplete context` for a
+  compact orientation summary.
 ```
 
 See [For AI agents](https://soldatov-ss.github.io/django-completion/agents/) for the output format, the cache schema, and its stability policy.
