@@ -22,6 +22,7 @@ class CacheData(TypedDict):
     schema_version: int
     commands: list[str]
     app_labels: list[AppLabelEntry]
+    command_apps: dict[str, str]
     command_help: dict[str, str]
     command_options: dict[str, list[str]]
     command_option_descriptions: dict[str, dict[str, str]]
@@ -148,6 +149,11 @@ def build_cache() -> CacheData:
     app_labels: list[AppLabelEntry] = [{"label": cfg.label, "origin": classify_app(cfg)} for cfg in app_configs]
     app_labels.sort(key=lambda entry: (entry["origin"] != "local", entry["label"]))
 
+    # get_commands() maps command -> app *name* (dotted path); expose app *labels*
+    # so consumers can join against app_labels. Django built-ins stay "django.core".
+    name_to_label = {cfg.name: cfg.label for cfg in app_configs}
+    command_apps = {cmd: name_to_label.get(app_name, app_name) for cmd, app_name in sorted(commands_map.items())}
+
     migration_modules = getattr(settings, "MIGRATION_MODULES", {}) or {}
     migrations, migration_warnings = _discover_migrations(app_configs, migration_modules)
 
@@ -157,6 +163,7 @@ def build_cache() -> CacheData:
         "schema_version": 2,
         "commands": command_names,
         "app_labels": app_labels,
+        "command_apps": command_apps,
         "command_help": command_help,
         "command_options": command_options,
         "command_option_descriptions": command_option_descriptions,
@@ -181,8 +188,25 @@ def read_cache(path: Path | None = None) -> dict | None:
         return None
 
 
+# datetime.fromtimestamp raises past year 9999; anything outside (0, this) is corrupt.
+_MAX_TIMESTAMP = 253402300800
+
+
+def sane_generated_at(cache: dict) -> float | None:
+    """Return generated_at as a usable Unix timestamp, or None when missing or corrupt.
+
+    Hand-edited caches can hold any JSON value here — NaN, Infinity, huge ints,
+    strings — none of which may reach arithmetic or datetime.fromtimestamp.
+    """
+    ts = cache.get("generated_at")
+    if isinstance(ts, int | float) and 0 < ts < _MAX_TIMESTAMP:
+        return float(ts)
+    return None
+
+
 def is_stale(cache: dict, cooldown_seconds: int = COOLDOWN_SECONDS) -> bool:
-    return (time.time() - cache.get("generated_at", 0)) > cooldown_seconds
+    ts = sane_generated_at(cache)
+    return ts is None or (time.time() - ts) > cooldown_seconds
 
 
 def maybe_refresh_cache() -> bool:

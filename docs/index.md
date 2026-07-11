@@ -1,6 +1,6 @@
 # django-completion
 
-**django-completion** adds project-aware tab completion to Django's `manage.py`. It completes your project's own management commands and their flags — plus app labels, migration targets, and everything Django ships with — in bash and zsh, reading a local JSON cache so Tab never imports Django or touches the database.
+**django-completion** maintains a JSON cache of your Django project's management commands, their flags, app labels, and migration names — and serves it to two consumers. Coding agents read it in one go (one file read or one `autocomplete context` call) instead of running `--help` once per command, each one booting Django. Your shell turns the same cache into project-aware tab completion for `manage.py` in bash and zsh — and Tab never imports Django or touches the database.
 
 ```bash
 $ python manage.py imp<TAB>
@@ -20,11 +20,16 @@ On a project with dozens of custom management commands, nobody remembers every n
 ## Getting started
 
 1. [Installation](installation.md) — install the package and set up shell completion
-2. [Usage](usage.md) — completion behavior, subcommands, and auto-refresh
-3. [How it works](how_it_works.md) — cache, shell hooks, helper process, and refresh lifecycle
-4. [Troubleshooting](troubleshooting.md) — common problems and fixes
-5. [API Reference](api.md) — supported commands, cache schema, and compatibility notes
-6. [Comparison with Django's built-in completion](comparison.md) — feature-by-feature breakdown
+2. [For AI agents](agents.md) — the cache as a machine-readable project summary, `autocomplete context`, schema contract
+3. [Usage](usage.md) — completion behavior, subcommands, and auto-refresh
+4. [How it works](how_it_works.md) — cache, shell hooks, helper process, and refresh lifecycle
+5. [Troubleshooting](troubleshooting.md) — common problems and fixes
+6. [API Reference](api.md) — supported commands, cache schema, and compatibility notes
+7. [Comparison with Django's built-in completion](comparison.md) — feature-by-feature breakdown
+
+## For AI agents
+
+The same cache gives coding agents every command, flag, and migration name from one file read — no Django boot — or one `python manage.py autocomplete context` call for a compact markdown summary. Measured on this repo's test project: 33 Django boots (~4 s) for the `--help` sweep vs. one boot (~0.2 s) for `context` vs. under a millisecond to read the file. See [For AI agents](agents.md) for the schema contract and an `AGENTS.md`/`CLAUDE.md` snippet.
 
 ## Compatibility
 
@@ -53,4 +58,4 @@ See [Comparison with Django's built-in completion](comparison.md) for the full f
 Django can suggest close command names after an error. django-completion prevents many of those errors by completing project-specific commands, app labels, options, and migration targets before you press Enter.
 
 ---
-*By [Soldatov Serhii](https://github.com/soldatov-ss) · Last updated: May 2026*
+*By [Soldatov Serhii](https://github.com/soldatov-ss) · Last updated: July 2026*

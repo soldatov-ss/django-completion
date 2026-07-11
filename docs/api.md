@@ -54,6 +54,16 @@ python manage.py autocomplete uninstall
 
 Removes marker-delimited shell RC blocks, deletes managed script files, and removes the managed install directory if empty.
 
+### `autocomplete context`
+
+```bash
+python manage.py autocomplete context
+python manage.py autocomplete context --json
+python manage.py autocomplete context --refresh
+```
+
+Prints a compact project summary for coding agents: project-local commands with their non-global flags and help text, migration names per local app, and a one-line list of the remaining commands. `--json` prints the full cache instead (including all apps' migrations); `--refresh` forces a rebuild first. Rebuilds automatically when the cache is missing or stale. See [For AI agents](agents.md).
+
 ## Settings
 
 ### `DJANGO_COMPLETION_AUTO_REFRESH`
@@ -66,7 +76,7 @@ When enabled, django-completion refreshes the cache in a background thread after
 DJANGO_COMPLETION_AUTO_REFRESH = False
 ```
 
-Manual `autocomplete refresh` still works when auto-refresh is disabled.
+Manual `autocomplete refresh` still works when auto-refresh is disabled. Disabling it also stops `autocomplete context` from writing its automatic rebuild of a missing or stale cache back to disk — pass `context --refresh` (or run `autocomplete refresh`/`install`) to persist explicitly.
 
 ## Cache schema
 
@@ -82,6 +92,11 @@ The cache schema (version 2):
     {"label": "accounts", "origin": "local"},
     {"label": "auth", "origin": "pip"}
   ],
+  "command_apps": {
+    "migrate": "django.core",
+    "runserver": "django.core",
+    "shell": "django.core"
+  },
   "command_help": {
     "migrate": "Updates database schema. Manages both apps with migrations and those without."
   },
@@ -105,10 +120,13 @@ The cache schema (version 2):
 Cache notes:
 
 - missing `schema_version` means a v1 cache
+- `command_apps` maps each command to the label of the app providing it; Django built-ins appear as `"django.core"`
 - `migrations` is keyed by app label
 - migration names do not include `.py`
 - `zero` is added to completion output, not stored in the cache
 - `warnings` are informational and do not prevent cache generation
+
+The cache file format is a documented contract for external consumers such as coding agents: additive fields do not bump `schema_version`, breaking changes do, and consumers must ignore unknown fields. See [For AI agents](agents.md) for the consumer-facing reference.
 
 ## Internal helper
 
@@ -138,4 +156,4 @@ Future rules should preserve these constraints:
 - shell templates should not duplicate command-context logic
 
 ---
-*By [Soldatov Serhii](https://github.com/soldatov-ss) · Last updated: May 2026*
+*By [Soldatov Serhii](https://github.com/soldatov-ss) · Last updated: July 2026*

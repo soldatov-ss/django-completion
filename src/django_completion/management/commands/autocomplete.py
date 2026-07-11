@@ -1,13 +1,17 @@
 from argparse import ArgumentParser
 from datetime import datetime, timezone
 from difflib import get_close_matches
+from functools import lru_cache
 from importlib.metadata import PackageNotFoundError, version
+import json
 import os
 from pathlib import Path
 import re
-from typing import Any, Literal
+from typing import Any, Literal, cast
 
 from django.core.management.base import BaseCommand
+
+from django_completion.cache import sane_generated_at
 
 _INSTALL_DIR = Path.home() / ".local" / "share" / "django-completion"
 _MARKER_BEGIN = "# django-completion begin"
@@ -186,10 +190,10 @@ def _schema_status(cache: dict[str, Any]) -> str:
 
 def _generated_at_label(cache: dict[str, Any]) -> str:
     """Return the cache generation timestamp formatted for diagnostics."""
-    generated_at = cache.get("generated_at")
-    if isinstance(generated_at, int | float):
-        return datetime.fromtimestamp(generated_at, timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
-    return "unknown"
+    generated_at = sane_generated_at(cache)
+    if generated_at is None:
+        return "unknown"
+    return datetime.fromtimestamp(generated_at, timezone.utc).strftime("%Y-%m-%d %H:%M:%S UTC")
 
 
 def _migration_apps_label(cache: dict[str, Any]) -> str:
@@ -214,6 +218,124 @@ def _warnings(cache: dict[str, Any]) -> list[str]:
     if not isinstance(warnings, list):
         return []
     return [warning for warning in warnings if isinstance(warning, str) and warning]
+
+
+@lru_cache(maxsize=1)
+def _global_command_options() -> frozenset[str]:
+    """Flags every BaseCommand accepts — noise in a per-command signature listing.
+
+    Derived from a real parser instead of hardcoded so a Django version that adds
+    a new global flag (as 2.1 and 3.0 did) doesn't silently misattribute it to
+    every local command.
+    """
+    parser = BaseCommand().create_parser("manage.py", "")
+    return frozenset(opt for action in parser._actions for opt in action.option_strings if opt.startswith("-"))
+
+
+def _usable_context_cache(cache: dict[str, Any]) -> bool:
+    """Check the fields the context renderer touches; hand-edited caches can hold any JSON.
+
+    A False return means "treat like a missing cache and rebuild" — the file is
+    user-visible disk state, so wrong types must not produce a traceback. Checks
+    element types, not just container types, since the renderer indexes into
+    each element (e.g. ``entry["label"]``, ``", ".join(migrations[app])``).
+    """
+    if not isinstance(cache, dict):
+        return False
+
+    commands = cache.get("commands")
+    if not isinstance(commands, list) or not all(isinstance(c, str) for c in commands):
+        return False
+
+    app_labels = cache.get("app_labels")
+    if not isinstance(app_labels, list) or not all(
+        isinstance(entry, dict) and isinstance(entry.get("label"), str) for entry in app_labels
+    ):
+        return False
+
+    command_apps = cache.get("command_apps")
+    if not isinstance(command_apps, dict) or not all(isinstance(v, str) for v in command_apps.values()):
+        return False
+
+    command_help = cache.get("command_help")
+    if not isinstance(command_help, dict) or not all(isinstance(v, str) for v in command_help.values()):
+        return False
+
+    command_options = cache.get("command_options")
+    if not isinstance(command_options, dict) or not all(
+        isinstance(v, list) and all(isinstance(opt, str) for opt in v) for v in command_options.values()
+    ):
+        return False
+
+    migrations = cache.get("migrations")
+    if not isinstance(migrations, dict) or not all(
+        isinstance(v, list) and all(isinstance(name, str) for name in v) for v in migrations.values()
+    ):
+        return False
+
+    return sane_generated_at(cache) is not None
+
+
+def _local_app_labels(cache: dict[str, Any]) -> set[str]:
+    """Return the set of app labels whose origin is 'local'."""
+    return {entry["label"] for entry in cache.get("app_labels", []) if entry.get("origin") == "local"}
+
+
+def _local_command_names(cache: dict[str, Any]) -> list[str]:
+    """Return commands provided by local apps, using command_apps joined against app_labels."""
+    local_labels = _local_app_labels(cache)
+    command_apps = cache.get("command_apps", {})
+    return [cmd for cmd in cache.get("commands", []) if command_apps.get(cmd) in local_labels]
+
+
+def _own_options(cache: dict[str, Any], cmd: str) -> list[str]:
+    """Return a command's option flags with the BaseCommand globals stripped."""
+    options = cache.get("command_options", {}).get(cmd, [])
+    return [opt for opt in options if opt not in _global_command_options()]
+
+
+def _render_context(cache: dict[str, Any]) -> str:
+    """Render the cache as a compact markdown project summary for coding agents."""
+    commands = cache.get("commands", [])
+    local_commands = _local_command_names(cache)
+    command_help = cache.get("command_help", {})
+    migrations = cache.get("migrations", {})
+    local_labels = _local_app_labels(cache)
+    local_migrations = {app: names for app, names in migrations.items() if app in local_labels}
+
+    lines = [f"# manage.py — {len(commands)} commands (cache generated {_generated_at_label(cache)})", ""]
+
+    warnings = _warnings(cache)
+    if warnings:
+        # Neutral wording: the list mixes command- and migration-inspection warnings.
+        lines.append(
+            f"> {len(warnings)} warning{'s' if len(warnings) != 1 else ''} "
+            "— run `autocomplete status --verbose` for details"
+        )
+        lines.append("")
+
+    lines.append("## Project commands [local]")
+    for cmd in local_commands:
+        help_text = command_help.get(cmd, "")
+        first_line = next((line.strip() for line in help_text.splitlines() if line.strip()), "")
+        lines.append(f"- {cmd} — {first_line}" if first_line else f"- {cmd}")
+        options = _own_options(cache, cmd)
+        if options:
+            lines.append(f"    {'  '.join(options)}")
+    if not local_commands:
+        lines.append("(none found)")
+
+    lines.extend(["", "## Migrations on disk [local]"])
+    for app in sorted(local_migrations):
+        lines.append(f"- {app}: {', '.join(local_migrations[app])}")
+    if not local_migrations:
+        lines.append("(none found)")
+
+    local_set = set(local_commands)
+    lines.extend(["", "## Built-in and third-party commands"])
+    lines.append(", ".join(cmd for cmd in commands if cmd not in local_set))
+    lines.append("(run `python manage.py autocomplete context --json` for flags and descriptions)")
+    return "\n".join(lines)
 
 
 class Command(BaseCommand):
@@ -248,7 +370,18 @@ class Command(BaseCommand):
             description="Remove the shell hook from your RC file and delete the managed script files.",
         )
 
-        _subcommands = ("install", "status", "refresh", "uninstall")
+        context = sub.add_parser(
+            "context",
+            help="Print a project summary for coding agents",
+            description=(
+                "Print a compact summary of management commands, flags, and migrations "
+                "for coding agents, refreshing the cache first if it is stale."
+            ),
+        )
+        context.add_argument("--json", action="store_true", help="Print the full cache as JSON instead of markdown")
+        context.add_argument("--refresh", action="store_true", help="Force a cache rebuild before printing")
+
+        _subcommands = tuple(sub.choices)
         _original_error = parser.error
 
         def _error_with_suggestion(message: str) -> None:
@@ -268,6 +401,7 @@ class Command(BaseCommand):
             "status": self._status,
             "refresh": self._refresh,
             "uninstall": self._uninstall,
+            "context": self._context,
         }
         dispatch[options["subcommand"]](options)
 
@@ -315,7 +449,7 @@ class Command(BaseCommand):
         if cache is None:
             self.stdout.write("Cache: not found")
         else:
-            age = time.time() - cache.get("generated_at", 0)
+            age = time.time() - (sane_generated_at(cache) or 0)
             stale = is_stale(cache, COOLDOWN_SECONDS)
             self.stdout.write(f"Cache: {cache_path} (age {_human_age(age)}, {'stale' if stale else 'fresh'})")
             self.stdout.write(f"Schema: {_schema_status(cache)}")
@@ -425,6 +559,39 @@ class Command(BaseCommand):
                 f"Cache rebuilt: {cmd_count} commands{cmd_delta}, {app_count} apps{app_delta}{warning_suffix}"
             )
         )
+
+    def _context(self, options: dict[str, Any]) -> None:
+        """Print a project summary for coding agents, as markdown or full-cache JSON."""
+        from django.conf import settings
+
+        from django_completion.cache import _cache_path, _refresh_lock, build_cache, is_stale, read_cache, write_cache
+
+        cache_path = _cache_path()
+        # --refresh means "ignore whatever's on disk"; skip the read entirely.
+        cache: dict[str, Any] | None = None if options["refresh"] else read_cache(cache_path)
+        # An unusable cache (pre-0.3.0 without command_apps, or hand-edited to
+        # wrong types) is treated like a missing one. Checked before is_stale,
+        # which needs a numeric generated_at.
+        if cache is None or not _usable_context_cache(cache) or is_stale(cache):
+            # ponytail: blocking lock around build+write; a rare wait behind the
+            # background refresh thread beats two concurrent full builds.
+            with _refresh_lock:
+                cache = cast(dict[str, Any], build_cache())
+                # DJANGO_COMPLETION_AUTO_REFRESH=False means "don't write the cache
+                # automatically" (see apps.py). --refresh is an explicit ask and always
+                # persists; otherwise a missing/stale cache found in passing only
+                # persists when auto-refresh is on. Either way the data just built is
+                # still rendered below — a read-only checkout must not crash the command.
+                if options["refresh"] or getattr(settings, "DJANGO_COMPLETION_AUTO_REFRESH", True):
+                    try:
+                        write_cache(cache, cache_path)
+                    except OSError as exc:
+                        self.stderr.write(f"Note: cache not written ({exc}); output below is current.")
+
+        if options["json"]:
+            self.stdout.write(json.dumps(cache, indent=2))
+        else:
+            self.stdout.write(_render_context(cache))
 
     def _uninstall(self, options: dict[str, Any]) -> None:
         """Remove the marker-delimited completion block from all shell RC files."""

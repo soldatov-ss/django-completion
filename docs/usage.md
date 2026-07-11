@@ -112,6 +112,18 @@ Removes the shell hook and managed script files.
 python manage.py autocomplete uninstall
 ```
 
+### `autocomplete context`
+
+Prints a compact project summary for coding agents — project-local commands with their flags and help text first, then migration names per local app, then the remaining commands on one line. `--json` includes all apps' migrations.
+
+```bash
+python manage.py autocomplete context
+python manage.py autocomplete context --json      # full cache as JSON
+python manage.py autocomplete context --refresh   # force a rebuild first
+```
+
+See [For AI agents](agents.md) for the output format, the cache schema, and a snippet for your project's `AGENTS.md`/`CLAUDE.md`.
+
 ## Auto-refresh
 
 After each `manage.py` command, django-completion refreshes the cache in a background thread with a 60-second cooldown. This keeps completions current without making tab completion import Django.
@@ -123,7 +135,7 @@ To disable auto-refresh and manage the cache manually:
 DJANGO_COMPLETION_AUTO_REFRESH = False
 ```
 
-When disabled, `autocomplete refresh` still works normally.
+When disabled, `autocomplete refresh` still works normally. `autocomplete context` still rebuilds a missing or stale cache in memory for its own output, but only writes it to disk when you pass `--refresh`.
 
 ## Known limits
 
@@ -137,4 +149,4 @@ These are currently out of scope:
 - database-aware applied/unapplied migration filtering
 
 ---
-*By [Soldatov Serhii](https://github.com/soldatov-ss) · Last updated: May 2026*
+*By [Soldatov Serhii](https://github.com/soldatov-ss) · Last updated: July 2026*

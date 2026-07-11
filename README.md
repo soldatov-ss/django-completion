@@ -5,11 +5,9 @@
 ![CI](https://github.com/soldatov-ss/django-completion/actions/workflows/ci.yml/badge.svg)
 ![License](https://img.shields.io/pypi/l/django-completion.svg)
 
-Project-aware **tab completion** for Django's `manage.py`.
+Django `manage.py` context for **coding agents** — and **tab completion** for you.
 
-Press Tab to complete your project's own management commands and their flags — plus app labels and migration targets — in bash and zsh. On a project with dozens of custom commands, nobody remembers every name and argument signature; django-completion introspects them from your actual project.
-
-![django-completion demo](https://raw.githubusercontent.com/soldatov-ss/django-completion/main/demo.gif)
+Your agent learns every management command, its flags, and all migration names from one file read (no Django boot at all) or one `autocomplete context` call — instead of running `--help` once per command, each one booting Django. The same cache gives you project-aware Tab completion in bash and zsh: your own commands, their flags, app labels, and migration targets.
 
 ## Installation
 
@@ -45,7 +43,51 @@ source ~/.bashrc   # bash
 source ~/.zshrc    # zsh
 ```
 
-## What Completes
+## For AI agents
+
+An agent working in a Django repo discovers commands by running `manage.py help`, then `<command> --help` once per command — each one importing Django and your settings — or by grepping `management/commands/`, which misses commands from third-party apps. The cache django-completion maintains already holds all of it.
+
+```bash
+python manage.py autocomplete context
+```
+
+prints a compact markdown summary — your project's own commands first with their flags and help text, migration names per local app, and a one-line list of everything else (`--json` prints the full cache):
+
+```markdown
+# manage.py — 32 commands (cache generated 2026-07-05 16:40:15 UTC)
+
+## Project commands [local]
+- import_articles — Import articles from an external feed into the blog.
+    --dry-run  --limit  --since  --source
+
+## Migrations on disk [local]
+- accounts: 0001_initial, 0002_add_profile
+- blog: 0001_initial, 0002_add_slug, 0003_add_published_at
+
+## Built-in and third-party commands
+check, dumpdata, makemigrations, migrate, runserver, shell, test, …
+```
+
+Measured on this repo's minimal test project (32 commands): the `--help` sweep is 33 Django boots (~4 s), `autocomplete context` is one boot (~0.2 s), and reading `.django-completion-cache.json` directly takes under a millisecond — and the file read still works when settings are broken or dependencies are missing. On a real project where each boot takes seconds, the sweep costs minutes.
+
+Add this to your project's `AGENTS.md` or `CLAUDE.md`:
+
+```markdown
+## Django management commands
+This project maintains `.django-completion-cache.json` (django-completion).
+Read it — or run `python manage.py autocomplete context` — instead of running
+`manage.py help` or grepping management/commands/. It lists every command,
+its flags with descriptions, and all migration names, and refreshes
+automatically after each manage.py run.
+```
+
+See [For AI agents](https://soldatov-ss.github.io/django-completion/agents/) for the output format, the cache schema, and its stability policy.
+
+## Tab completion
+
+Press Tab to complete your project's own management commands and their flags — plus app labels and migration targets — in bash and zsh. On a project with dozens of custom commands, nobody remembers every name and argument signature; django-completion introspects them from your actual project.
+
+![django-completion demo](https://raw.githubusercontent.com/soldatov-ss/django-completion/main/demo.gif)
 
 The completion cache is built from your project at runtime, so it covers your custom management commands the same way it covers Django's built-ins:
 
@@ -75,12 +117,14 @@ Completion depth:
 
 Django's built-in completion covers command names and option flags — it has no knowledge of your app labels, migration names, or project-specific targets. django-completion fills that gap. See [comparison with Django's built-in completion](https://soldatov-ss.github.io/django-completion/comparison/) for a full feature breakdown.
 
+
 ## Commands
 
 ```bash
 python manage.py autocomplete status
 python manage.py autocomplete status --verbose
 python manage.py autocomplete refresh
+python manage.py autocomplete context
 python manage.py autocomplete uninstall
 ```
 
@@ -112,7 +156,7 @@ DJANGO_COMPLETION_AUTO_REFRESH = False
 - Tab completion does not import Django.
 - Tab completion does not touch the database.
 - The cache is local runtime state in the project root.
-- The cache contains command names, app labels, option names/help, migration names, warnings, and timestamps.
+- The cache contains command names, their providing apps, app labels, option names/help, migration names, warnings, and timestamps.
 - Shell rc edits are marker-delimited and reversible.
 - `autocomplete uninstall` removes managed shell hooks and managed scripts.
 - The package has no middleware, models, migrations, or request-time behavior.

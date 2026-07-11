@@ -7,6 +7,7 @@ repo_name = "soldatov-ss/django-completion"
 nav = [
   { "Home" = "index.md" },
   { "Installation" = "installation.md" },
+  { "For AI agents" = "agents.md" },
   { "Comparison" = "comparison.md" },
   { "Usage" = "usage.md" },
   { "How it works" = "how_it_works.md" },
