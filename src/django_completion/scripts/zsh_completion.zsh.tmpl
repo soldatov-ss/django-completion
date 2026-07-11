@@ -7,7 +7,7 @@
 _django_manage_find_cache() {
     local dir="$PWD"
     while [[ "$dir" != "/" ]]; do
-        [[ -f "$dir/.django-completion-cache.json" ]] && { echo "$dir/.django-completion-cache.json"; return; }
+        [[ -f "$dir/{{CACHE_FILENAME}}" ]] && { echo "$dir/{{CACHE_FILENAME}}"; return; }
         dir="$(dirname "$dir")"
     done
 }

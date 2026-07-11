@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "django-completion"
-version = "0.3.0"
+version = "0.3.1"
 description = "Django manage.py context for coding agents + project-aware tab completion — commands, flags, app labels, and migration targets from one cache"
 readme = "README.md"
 authors = [
