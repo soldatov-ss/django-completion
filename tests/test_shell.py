@@ -1,16 +1,29 @@
 """Subprocess-based shell completion tests (Step 8)."""
 
+from functools import lru_cache
 import io
 import json
 from pathlib import Path
 import shutil
 import subprocess
+import tempfile
+from typing import Literal
 
 import pytest
 
 SCRIPTS_DIR = Path(__file__).parent.parent / "src/django_completion/scripts"
 BASH_SCRIPT = SCRIPTS_DIR / "bash_completion.sh.tmpl"
 ZSH_SCRIPT = SCRIPTS_DIR / "zsh_completion.zsh.tmpl"
+
+
+@lru_cache(maxsize=None)
+def _rendered_script(shell: Literal["bash", "zsh"]) -> Path:
+    """Write the rendered completion script (what `install` ships) to a temp file."""
+    from django_completion.management.commands.autocomplete import _script_content
+
+    path = Path(tempfile.mkdtemp()) / f"completion.{shell}"
+    path.write_text(_script_content(shell))
+    return path
 
 
 @pytest.fixture
@@ -59,7 +72,7 @@ def _bash_complete(
             "bash",
             "-c",
             f"""
-source {BASH_SCRIPT}
+source {_rendered_script("bash")}
 cd {cache_dir}
 COMP_WORDS=({words_str})
 COMP_CWORD={comp_cword}
@@ -215,7 +228,7 @@ def test_bash_empty_completions_do_not_leak_filenames(cache_dir):
 @pytest.mark.skipif(not shutil.which("zsh"), reason="zsh not available")
 def test_zsh_script_sources_without_error(cache_dir):
     result = subprocess.run(
-        ["zsh", "-c", f"source {ZSH_SCRIPT}; echo OK"],
+        ["zsh", "-c", f"source {_rendered_script('zsh')}; echo OK"],
         capture_output=True,
         text=True,
         timeout=10,
@@ -244,6 +257,15 @@ def test_zsh_helper_is_invoked():
     assert "django_completion._complete" in text
     assert "python3 -m django_completion._complete" in text
     assert "compdef _django_python_manage python python3 uv" in text
+
+
+def test_rendered_script_substitutes_cache_filename():
+    from django_completion.cache import CACHE_FILENAME
+
+    for shell in ("bash", "zsh"):
+        text = _rendered_script(shell).read_text()
+        assert CACHE_FILENAME in text
+        assert "{{" not in text
 
 
 # ── Full integration: refresh command writes a valid cache ──────────────────

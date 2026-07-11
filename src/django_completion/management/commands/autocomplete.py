@@ -11,7 +11,7 @@ from typing import Any, Literal, cast
 
 from django.core.management.base import BaseCommand
 
-from django_completion.cache import sane_generated_at
+from django_completion.cache import CACHE_FILENAME, sane_generated_at
 
 _INSTALL_DIR = Path.home() / ".local" / "share" / "django-completion"
 _MARKER_BEGIN = "# django-completion begin"
@@ -51,9 +51,9 @@ def _detect_shell() -> Literal["zsh", "bash"]:
 
 
 def _script_content(shell: Literal["bash", "zsh"]) -> str:
-    """Read the completion script template for the given shell."""
+    """Read the completion script template for the given shell and render it."""
     tmpl = Path(__file__).parent.parent.parent / "scripts" / _TMPL_NAMES[shell]
-    return tmpl.read_text()
+    return tmpl.read_text().replace("{{CACHE_FILENAME}}", CACHE_FILENAME)
 
 
 def _package_version() -> str:
@@ -620,4 +620,4 @@ class Command(BaseCommand):
             for rc_path in removed_rc_paths:
                 self.stdout.write(f"  source {rc_path}")
             self.stdout.write("Or open a new terminal.")
-        self.stdout.write("\nNote: .django-completion-cache.json was left in place. Delete it manually if needed.")
+        self.stdout.write(f"\nNote: {CACHE_FILENAME} was left in place. Delete it manually if needed.")
